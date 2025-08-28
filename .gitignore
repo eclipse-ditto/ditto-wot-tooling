@@ -1,0 +1,16 @@
+.checkstyle
+.classpath
+.flattened-pom.xml
+.idea
+*.iml
+.project
+.settings
+.metadata
+.vscode/
+target/
+ajcore.*.txt
+*.mdb
+.env
+.DS_Store
+.factorypath
+
