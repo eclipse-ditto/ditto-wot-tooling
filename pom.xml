@@ -1,0 +1,666 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2025 Contributors to the Eclipse Foundation
+  ~
+  ~ See the NOTICE file(s) distributed with this work for additional
+  ~ information regarding copyright ownership.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License 2.0 which is available at
+  ~ http://www.eclipse.org/legal/epl-2.0
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.eclipse.ditto</groupId>
+    <artifactId>ditto-wot-tooling</artifactId>
+    <packaging>pom</packaging>
+    <version>${revision}</version>
+
+    <name>Eclipse Ditto :: WoT Tooling</name>
+    <description>Eclipse Ditto is a framework for creating and managing digital twins in the IoT.</description>
+    <url>https://eclipse.dev/ditto/</url>
+    <inceptionYear>2025</inceptionYear>
+
+    <organization>
+        <name>Eclipse Foundation</name>
+        <url>https://www.eclipse.org/</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>Eclipse Public License - Version 2.0</name>
+            <url>https://www.eclipse.org/org/documents/epl-2.0/index.php</url>
+        </license>
+    </licenses>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/eclipse-ditto/ditto-wot-tooling/issues</url>
+    </issueManagement>
+
+    <scm>
+        <connection>${release.scm.connection}</connection>
+        <developerConnection>${release.scm.developerConnection}</developerConnection>
+        <url>${release.scm.url}</url>
+    </scm>
+
+    <ciManagement>
+        <system>Jenkins</system>
+        <url>https://ci.eclipse.org/ditto/</url>
+    </ciManagement>
+
+    <distributionManagement>
+        <repository>
+            <id>repo.eclipse.org</id>
+            <name>Ditto Releases</name>
+            <url>https://repo.eclipse.org/content/repositories/ditto-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>repo.eclipse.org</id>
+            <name>Ditto Snapshots</name>
+            <url>https://repo.eclipse.org/content/repositories/ditto-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <modules>
+        <!-- add submodules here -->
+    </modules>
+
+    <properties>
+        <revision>0-SNAPSHOT</revision>
+
+        <javac.source>21</javac.source>
+        <javac.target>21</javac.target>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- configure timestamp format to be injected into legal docs -->
+        <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
+        <timestamp>${maven.build.timestamp}</timestamp>
+
+        <release.scm.connection>scm:git:git@github.com:eclipse-ditto/ditto-wot-tooling.git</release.scm.connection>
+        <release.scm.developerConnection>scm:git:https://github.com/eclipse-ditto/ditto-wot-tooling.git</release.scm.developerConnection>
+        <release.scm.url>https://github.com/eclipse-ditto/ditto-wot-tooling.git</release.scm.url>
+
+        <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
+
+        <maven.skins.fluido.version>1.7</maven.skins.fluido.version>
+        <doxia.markdown.version>1.8</doxia.markdown.version>
+
+        <ditto.thirdPartyLicences.excludedGroups>
+            (org\.eclipse\.ditto.*)|(com\.lihaoyi.*)
+        </ditto.thirdPartyLicences.excludedGroups>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>apache-releases</id>
+            <name>apache-releases</name>
+            <url>https://repository.apache.org/content/repositories/releases/</url>
+        </repository>
+    </repositories>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <!-- Changes in plugin should also be made in inspect-deprecations profile -->
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <source>${javac.source}</source>
+                        <target>${javac.target}</target>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.7.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.4.2</version>
+                    <configuration>
+                        <archive>
+                            <addMavenDescriptor>false</addMavenDescriptor>
+                        </archive>
+                    </configuration>
+                </plugin>
+
+                <!-- Declaration for the 3 following plugins is explicitly needed by Maven 3 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.1.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.8.0</version>
+                    <configuration>
+                        <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
+                        <detectJavaApiLink>false</detectJavaApiLink>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.7.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-report-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.3.1</version>
+                    <executions>
+                        <execution>
+                            <id>integration-test</id>
+                            <goals>
+                                <goal>integration-test</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>verify</id>
+                            <goals>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>3.1.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.mycila</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>4.5</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>2.4.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.12</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-scm-plugin</artifactId>
+                    <version>2.1.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>0.7.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.2.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.eclipse.cbi.maven.plugins</groupId>
+                    <artifactId>eclipse-jarsigner-plugin</artifactId>
+                    <version>1.4.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>1.6.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <configuration>
+                    <tag>${project.version}</tag>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <inherited>false</inherited>
+                <configuration>
+                    <header>${project.basedir}/src/license-header.txt</header>
+                    <aggregate>true</aggregate>
+                    <quiet>false</quiet>
+                    <failIfMissing>true</failIfMissing>
+                    <strictCheck>false</strictCheck>
+                    <headerDefinitions>
+                        <headerDefinition>${project.basedir}/legal/headers/license-header-xml-def.xml</headerDefinition>
+                    </headerDefinitions>
+                    <includes>
+                        <include>**/*.kt</include>
+                        <include>**/*.java</include>
+                        <include>**/*.scala</include>
+                        <include>**/*.sh</include>
+                        <include>**/pom.xml</include>
+                    </includes>
+                    <excludes>
+                        <exclude>target/**</exclude>
+                    </excludes>
+                    <useDefaultExcludes>true</useDefaultExcludes>
+                    <encoding>UTF-8</encoding>
+                    <mapping>
+                        <java>SLASHSTAR_STYLE</java>
+                    </mapping>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <configuration>
+                    <flattenMode>ossrh</flattenMode>
+                    <updatePomFile>true</updatePomFile>
+                </configuration>
+                <executions>
+                    <!-- enable flattening -->
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <!-- ensure proper cleanup -->
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>eclipse-repo</id>
+            <name>Eclipse CBI Repository</name>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <url>https://repo.eclipse.org/content/repositories/cbi-releases/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <profiles>
+        <profile>
+            <id>generate-custom-third-party-notices</id>
+            <activation>
+                <file>
+                    <!-- that file only exists when running the build on the root level: -->
+                    <exists>${maven.multiModuleProjectDirectory}/legal/templates/third-party-file.ftl</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>license-maven-plugin</artifactId>
+                        <inherited>true</inherited>
+                        <executions>
+                            <execution>
+                                <id>default-cli</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>add-third-party</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
+                                    <excludedGroups>${ditto.thirdPartyLicences.excludedGroups}</excludedGroups>
+                                    <includedScopes>compile,runtime</includedScopes>
+                                    <failOnMissing>true</failOnMissing>
+                                    <fileTemplate>${maven.multiModuleProjectDirectory}/legal/templates/third-party-file.ftl
+                                    </fileTemplate>
+                                    <thirdPartyFilename>NOTICE-THIRD-PARTY.md</thirdPartyFilename>
+                                    <licenseMergesFile>${maven.multiModuleProjectDirectory}/legal/templates/licenses-merges-file
+                                    </licenseMergesFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>generate-third-party-licenses</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>license-maven-plugin</artifactId>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>add-third-party</id>
+                                <goals>
+                                    <goal>aggregate-add-third-party</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>./legal</outputDirectory>
+                                    <excludedGroups>${ditto.thirdPartyLicences.excludedGroups}</excludedGroups>
+                                    <includedScopes>compile,runtime</includedScopes>
+                                    <failOnMissing>true</failOnMissing>
+                                    <fileTemplate>./legal/templates/third-party-file.ftl</fileTemplate>
+                                    <thirdPartyFilename>NOTICE-THIRD-PARTY.md</thirdPartyFilename>
+                                    <licenseMergesFile>./legal/templates/licenses-merges-file</licenseMergesFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>createJavadoc</id>
+            <activation>
+                <property>
+                    <name>createJavadoc</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>performRelease</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <docker.image.additional.tag>latest</docker.image.additional.tag>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-no-snapshots</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireReleaseDeps>
+                                            <message>No SNAPSHOT dependencies allowed in release!</message>
+                                        </requireReleaseDeps>
+                                        <requireReleaseVersion>
+                                            <message>Artifact cannot be SNAPSHOT version in release!</message>
+                                        </requireReleaseVersion>
+                                    </rules>
+                                    <fail>true</fail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>signArtifactsEclipse</id>
+            <activation>
+                <property>
+                    <name>signArtifactsEclipse</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.eclipse.cbi.maven.plugins</groupId>
+                        <artifactId>eclipse-jarsigner-plugin</artifactId>
+                        <configuration>
+                            <excludeInnerJars>true</excludeInnerJars>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-jars</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>signArtifactsMavenCentral</id>
+            <activation>
+                <property>
+                    <name>signArtifacts</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                  <gpgArguments>
+                                    <arg>--pinentry-mode</arg>
+                                    <arg>loopback</arg>
+                                  </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>publishToEclipseMavenRepo</id>
+            <activation>
+                <property>
+                    <name>publishToEclipseMavenRepo</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <distributionManagement>
+                <repository>
+                    <id>repo.eclipse.org</id>
+                    <name>Project Repository - Releases</name>
+                    <url>https://repo.eclipse.org/content/repositories/ditto-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>repo.eclipse.org</id>
+                    <name>Project Repository - Snapshots</name>
+                    <url>https://repo.eclipse.org/content/repositories/ditto-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+
+        <profile>
+            <id>publishToMavenCentral</id>
+            <activation>
+                <property>
+                    <name>publishToMavenCentral</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <distributionManagement>
+                <repository>
+                    <id>central</id>
+                    <name>Eclipse Ditto Repository - Release</name>
+                    <url>https://central.sonatype.com</url>
+                </repository>
+                <snapshotRepository>
+                    <id>central</id>
+                    <name>Eclipse Ditto Repository - Snapshots</name>
+                    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+            <build>
+                <plugins>
+                    <!-- see doc: https://eclipse-cbi.github.io/cbi-website/jiro/Nexus-Maven-Central/ -->
+                    <!-- see doc: https://central.sonatype.org/publish/publish-portal-maven/#automatic-publishing -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <centralSnapshotsUrl>https://central.sonatype.com/repository/maven-snapshots/</centralSnapshotsUrl>
+                            <deploymentName>Ditto WoT Tooling ${revision}</deploymentName>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <!-- This profile inspects and reports usage of deprecated methods -->
+            <id>inspect-deprecations</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>${javac.source}</source>
+                            <target>${javac.target}</target>
+                            <encoding>${project.build.sourceEncoding}</encoding>
+                            <showDeprecation>true</showDeprecation>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
