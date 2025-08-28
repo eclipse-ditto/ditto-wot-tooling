@@ -282,7 +282,7 @@
                 <artifactId>license-maven-plugin</artifactId>
                 <inherited>false</inherited>
                 <configuration>
-                    <header>${project.basedir}/src/license-header.txt</header>
+                    <header>${project.basedir}/legal/headers/license-header.txt</header>
                     <aggregate>true</aggregate>
                     <quiet>false</quiet>
                     <failIfMissing>true</failIfMissing>
