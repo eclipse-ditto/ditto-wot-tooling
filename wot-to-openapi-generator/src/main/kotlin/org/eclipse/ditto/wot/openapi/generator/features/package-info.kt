@@ -30,4 +30,4 @@
  * OpenAPI specifications, supporting modular and extensible Thing models
  * through feature-based architecture.
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.features
+package org.eclipse.ditto.wot.openapi.generator.features

@@ -16,71 +16,26 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.eclipse.ditto</groupId>
+    <parent>
+        <groupId>org.eclipse.ditto</groupId>
+        <artifactId>ditto-wot-tooling</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
     <artifactId>wot-to-openapi-generator</artifactId>
-    <version>0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Eclipse Ditto :: WoT to OpenAPI generator</name>
     <description>A tool for converting Web of Things (WoT) Thing models to OpenAPI 3.1.0 specifications</description>
     <url>https://github.com/eclipse-ditto/ditto-wot-tooling/wot-to-openapi-generator</url>
 
-    <organization>
-        <name>Eclipse Foundation</name>
-        <url>https://www.eclipse.org/</url>
-    </organization>
-
-    <licenses>
-        <license>
-            <name>Eclipse Public License - v 2.0</name>
-            <url>http://www.eclipse.org/legal/epl-2.0</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-
-    <issueManagement>
-        <system>GitHub Issues</system>
-        <url>https://github.com/eclipse-ditto/ditto-wot-tooling/issues</url>
-    </issueManagement>
-
-    <scm>
-        <connection>${release.scm.connection}</connection>
-        <developerConnection>${release.scm.developerConnection}</developerConnection>
-        <url>${release.scm.url}</url>
-    </scm>
-
-    <ciManagement>
-        <system>Jenkins</system>
-        <url>https://ci.eclipse.org/ditto/</url>
-    </ciManagement>
-
-    <distributionManagement>
-        <repository>
-            <id>repo.eclipse.org</id>
-            <name>Ditto Releases</name>
-            <url>https://repo.eclipse.org/content/repositories/ditto-releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>repo.eclipse.org</id>
-            <name>Ditto Snapshots</name>
-            <url>https://repo.eclipse.org/content/repositories/ditto-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <properties>
-        <kotlin.version>2.1.21</kotlin.version>
-        <kotlin.stdlib.version>2.1.21</kotlin.stdlib.version>
-        <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
-
         <java.version>21</java.version>
-        <maven.compiler.release>21</maven.compiler.release>
 
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-
-        <release.scm.connection>scm:git:git@github.com:eclipse-ditto/ditto-wot-tooling.git</release.scm.connection>
-        <release.scm.developerConnection>scm:git:https://github.com/eclipse-ditto/ditto-wot-tooling.git</release.scm.developerConnection>
-        <release.scm.url>https://github.com/eclipse-ditto/ditto-wot-tooling.git</release.scm.url>
+        <kotlin.version>2.2.10</kotlin.version>
+        <kotlin.stdlib.version>2.2.10</kotlin.stdlib.version>
+        <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
 
         <ditto.version>3.8.0-M4</ditto.version>
         <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
@@ -334,12 +289,22 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                        <configuration>
+                            <sourceDirs>
+                                <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
+                            </sourceDirs>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>test-compile</id>
                         <goals>
                             <goal>test-compile</goal>
                         </goals>
+                        <configuration>
+                            <sourceDirs>
+                                <sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
+                            </sourceDirs>
+                        </configuration>
                     </execution>
                 </executions>
                 <dependencies>

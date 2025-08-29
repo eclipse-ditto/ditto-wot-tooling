@@ -31,4 +31,4 @@
  * comprehensive OpenAPI specifications with proper schema definitions
  * and REST API endpoints.
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.thing
+package org.eclipse.ditto.wot.openapi.generator.thing

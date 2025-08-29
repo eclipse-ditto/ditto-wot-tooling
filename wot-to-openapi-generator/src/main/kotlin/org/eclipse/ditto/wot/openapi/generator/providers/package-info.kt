@@ -30,4 +30,4 @@
  * These providers ensure consistency across generated OpenAPI specifications
  * and provide reusable components that follow OpenAPI best practices.
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.providers
+package org.eclipse.ditto.wot.openapi.generator.providers

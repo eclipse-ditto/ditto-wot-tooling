@@ -1,12 +1,13 @@
-# WoT to OpenAPI Generator
+# Eclipse Ditto™ - WoT (Web of Things) Tooling :: WoT to OpenAPI Generator
 
-[![License](https://img.shields.io/badge/License-EPL%202.0-green.svg)](https://opensource.org/licenses/EPL-2.0)
-
-A Kotlin-based tool that converts WoT (Web of Things) Thing Models (JSON-LD format) into OpenAPI 3.1.0 specifications. This generator enables seamless integration between IoT devices and REST APIs by automatically creating comprehensive OpenAPI documentation from WoT schemas.
+A Kotlin-based tool that converts WoT (Web of Things) Thing Models (JSON-LD format) into OpenAPI 3.1.0 specifications
+describing Ditto HTTP endpoints.  
+This generator enables seamless integration between IoT devices and REST APIs by automatically creating comprehensive
+OpenAPI documentation from WoT schemas.
 
 ## Features
 
-- **WoT to OpenAPI Conversion**: Converts Thing Models to OpenAPI 3.1.0 specifications
+- **WoT to OpenAPI Conversion**: Converts Thing Models to OpenAPI 3.1.0 specifications describing Ditto HTTP endpoints
 
 ## Getting Started
 
@@ -18,12 +19,14 @@ A Kotlin-based tool that converts WoT (Web of Things) Thing Models (JSON-LD form
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/eclipse-ditto/ditto-wot-tooling.git
-cd ditto-wot-tooling
+cd ditto-wot-tooling/wot-to-openapi-generator
 ```
 
 2. Build the project:
+
 ```bash
 mvn clean install
 ```
@@ -38,56 +41,60 @@ Configure your IDE to run the `GeneratorStarter` class with the following argume
 
 **Main Class:** `org.eclipse.ditto.wot.openapi.generator.GeneratorStarter`
 
-**Program Arguments:** `<model-version> <model-name> <ditto-base-url> [base-url]`
+**Program Arguments:** `<model-base-url> <model-name> <model-version> [ditto-base-url]`
 
 **Example Configuration:**
+
 ```
-Program Arguments: 0 smart-radiator-thermostat https://ditto.example.com https://your-models.com/smartheating
+Program Arguments: https://your-models.com/things smart-lamp 1.1.0 https://ditto.example.com
 ```
 
-**Working Directory:** `/path/to/wot-to-openapi-generator`
+This configuration will load the WoT model from `https://your-models.com/things/smart-lamp-1.1.0.tm.jsonld` and generate
+an OpenAPI specification for it, using `https://ditto.example.com` as the Ditto base URL.
+
 
 #### 2. Command Line Interface
 
 ```bash
-java -jar target/wot-to-openapi-generator-1.0.0.jar <model-version> <model-name> <ditto-base-url> [base-url]
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar <model-base-url> <model-name> <model-version> [ditto-base-url]
 ```
 
 Parameters:
-- `model-version`: Version of the WoT model (e.g., "4.2.2")
+
+- `model-base-url`: Base URL for model loading
 - `model-name`: Name of the WoT model (e.g., "smart-radiator-thermostat")
-- `ditto-base-url`: Base URL for the Ditto API (e.g., "https://ditto.example.com")
-- `base-url` (optional): Custom base URL for model loading
+- `model-version`: Version of the WoT model (e.g., "4.2.2")
+- `ditto-base-url` (optional): Base URL for the Ditto API (e.g., "https://ditto.example.com")
 
 Example:
+
 ```bash
-java -jar target/wot-to-openapi-generator-1.0.0.jar 0 smart-radiator-thermostat dev https://your-models.com/smartheating
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com/things smart-lamp 1.1.0
 ```
 
 #### 2. Quick Start with Example
 
 1. **Build the project:**
-   ```bash
-   mvn clean package
-   ```
+```bash
+mvn clean package
+```
 
 2. **Run with a sample WoT model:**
-   ```bash
-   java -jar target/wot-to-openapi-generator-1.0.0.jar 0 smart-radiator-thermostat https://ditto.example.com https://your-models.com/smartheating
-   ```
+```bash
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com/things smart-lamp 1.1.0
+```
 
 3. **Check the generated output:**
-   The OpenAPI specifications will be generated in the `generated/` directory.
-
-
+The OpenAPI specifications will be generated in the `generated/` directory.
 
 #### 3. Custom Configuration
 
-The generator now accepts the Ditto base URL as a command-line parameter, making it easy to configure without modifying code:
+The generator now accepts the Ditto base URL as a command-line parameter, making it easy to configure without modifying
+code:
 
 ```bash
 # Use your own Ditto deployment
-java -jar target/wot-to-openapi-generator-1.0.0.jar 1.0.0 my-thing https://ditto.mycompany.com
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com/things my-thing 1.1.0 https://ditto.example.com
 
 # Or configure via Maven plugin (recommended for production use)
 ```
@@ -98,7 +105,7 @@ java -jar target/wot-to-openapi-generator-1.0.0.jar 1.0.0 my-thing https://ditto
 import org.eclipse.ditto.wot.openapi.generator.GeneratorStarter
 
 fun main() {
-    val args = arrayOf("0.1.0", "lamp", "https://ditto.example.com", "https://your-models.com/things")
+    val args = arrayOf("https://your-models.com/things", "lamp", "0.1.0", "https://ditto.example.com")
     GeneratorStarter.run(args)
 }
 ```
@@ -113,54 +120,6 @@ The generator creates OpenAPI 3.1.0 YAML files in the `generated/` directory wit
 - **Action APIs**: Action invocation endpoints with input/output schemas
 - **Enum Support**: Proper enum definitions for constrained values
 
-## How to Run
-
-### Method 1: IDE Configuration (Recommended for Development)
-
-1. **Open the project in your IDE** (IntelliJ IDEA, Eclipse, VS Code, etc.)
-
-2. **Configure Run Configuration:**
-   - **Main Class:** `org.eclipse.ditto.wot.openapi.generator.GeneratorStarter`
-   - **Program Arguments:** `0 lamp dev https://your-models.com/things`
-   - **Working Directory:** `/path/to/wot-to-openapi-generator`
-   - **Java SDK:** Java 21
-
-3. **Run the configuration** - the generator will execute and create OpenAPI files in the `generated/` directory
-
-### Method 2: Command Line
-
-#### Step-by-Step Instructions
-
-1. **Prerequisites Check:**
-   ```bash
-   java -version  # Should show Java 21 or higher
-   mvn -version   # Should show Maven 3.9.x or higher
-   ```
-
-2. **Clone and Build:**
-   ```bash
-   git clone https://github.com/eclipse-ditto/ditto-wot-tooling.git
-   cd wot-to-openapi-generator
-   mvn clean package
-   ```
-
-3. **Run the Generator:**
-   ```bash
-   # Basic usage
-   java -jar target/wot-to-openapi-generator-1.0.0.jar <version> <model-name> <ditto-base-url>
-   
-   # Example with real parameters
-   java -jar target/wot-to-openapi-generator-1.0.0.jar 0 smart-radiator-thermostat dev
-   
-   # With custom base URL
-   java -jar target/wot-to-openapi-generator-1.0.0.jar 0 smart-radiator-thermostat dev https://your-models.com
-   ```
-
-4. **Check Output:**
-   ```bash
-   ls -la generated/
-   # You should see generated OpenAPI YAML files
-   ```
 
 ### Troubleshooting
 
@@ -169,69 +128,26 @@ The generator creates OpenAPI 3.1.0 YAML files in the `generated/` directory wit
 - **Model not found**: Verify the model name and version exist at the specified endpoint
 - **Network issues**: Check if the WoT model endpoints are accessible
 
-### Customization
-
-- **Environment URLs**: Edit `src/main/kotlin/org/eclipse/ditto/wot/openapi/generator/Environment.kt`
-- **Ditto endpoints**: Update the `provideDittoUrl()` method in `WotLoader.kt`
-- **Output format**: Modify the OpenAPI generation logic in the generator classes
 
 ### Running with Different Models
 
 To generate OpenAPI for different WoT models, simply change the program arguments:
 
-**For Room Model:**
+**For Lamp Model:**
+
 ```
-Program Arguments: 0 room dev https://your-models.com/room
+Program Arguments: https://your-models.com/repo lamp 0.2.0 https://ditto.mycompany.com 
 ```
 
 **For Building Model:**
-```
-Program Arguments: 0 building dev https://your-models.com/building
-```
 
-**For Custom Model:**
 ```
-Program Arguments: <version> <model-name> <ditto-base-url> <base-url>
+Program Arguments: https://your-models.com/repo building 1.0.0 https://ditto.mycompany.com 
 ```
 
-**Note:** Replace `https://your-models.com` with your actual WoT model endpoint URLs.
 
-
-
-## Example
-                "TOILET",
-                "KITCHEN",
-                "LIVING_ROOM",
-                "BEDROOM",
-                "OFFICE"
-              ]
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-### Generated OpenAPI Schema
-```yaml
-components:
-  schemas:
-    attribute_location_room_type:
-      type: string
-      enum:
-        - HALLWAY_AND_STAIRCASE
-        - CORRIDOR
-        - BATHROOM
-        - TOILET
-        - KITCHEN
-        - LIVING_ROOM
-        - BEDROOM
-        - OFFICE
-      description: The usage type of the room
-      title: Room Usage Type
-```
+**Note:** Replace `https://your-models.com` with your actual WoT model endpoint URLs.  
+E.g. if using the version `1.0.0` and model name `building`, the full URL would be `https://your-models.com/building-1.0.0.tm.jsonld`.
 
 ## Architecture
 
@@ -244,57 +160,11 @@ The generator follows a modular architecture:
 - **`FeatureSchemaResolver`**: Handles feature schema generation
 - **`Utils`**: Common utilities for schema conversion
 
-## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to submit pull requests, report issues, and contribute to the project.
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
-
-## License
-
-This project is licensed under the Eclipse Public License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## Configuration
-
-### Configuration
-
-The generator now accepts the Ditto base URL as a command-line parameter, making it easy to configure without modifying code:
-
-```bash
-# Basic usage with your Ditto deployment
-java -jar target/wot-to-openapi-generator-1.0.0.jar 1.0.0 my-thing https://ditto.mycompany.com
-
-# With custom model base URL
-java -jar target/wot-to-openapi-generator-1.0.0.jar 1.0.0 my-thing https://ditto.mycompany.com https://models.mycompany.com
-```
-
-### Maven Plugin Configuration (Recommended)
-
-For production use, configure the Ditto URL via Maven plugin configuration rather than command-line parameters:
-
-```xml
-<plugin>
-    <groupId>org.eclipse.ditto</groupId>
-    <artifactId>wot-to-openapi-generator</artifactId>
-    <version>1.0.0</version>
-    <configuration>
-        <dittoBaseUrl>https://ditto.mycompany.com</dittoBaseUrl>
-        <modelVersion>1.0.0</modelVersion>
-        <modelName>my-thing</modelName>
-    </configuration>
-</plugin>
-```
-
-### WoT Model Requirements
+## WoT Model Requirements
 
 Your WoT Thing models should:
+
 - Be in JSON-LD format
 - Follow the WoT specification
 - Be accessible via HTTP/HTTPS endpoints
@@ -302,10 +172,11 @@ Your WoT Thing models should:
 
 ## Support
 
-- **Issues**: Report bugs and feature requests on [GitHub Issues](https://github.com/eclipse-ditto/ditto-wot-tooling/issues)
+- **Issues**: Report bugs and feature requests
+  on [GitHub Issues](https://github.com/eclipse-ditto/ditto-wot-tooling/issues)
 - **Documentation**: Check the generated OpenAPI specs in the `generated/` directory
 - **Community**: Join our discussions on GitHub
-- **Eclipse Ditto**: Visit [eclipse-ditto.github.io](https://eclipse-ditto.github.io/) for more information
+- **Eclipse Ditto**: Visit [eclipse.dev/ditto/](https://www.eclipse.dev/ditto/) for more information
 
 ## Acknowledgments
 
