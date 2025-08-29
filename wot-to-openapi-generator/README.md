@@ -46,10 +46,10 @@ Configure your IDE to run the `GeneratorStarter` class with the following argume
 **Example Configuration:**
 
 ```
-Program Arguments: https://your-models.com/things smart-lamp 1.1.0 https://ditto.example.com
+Program Arguments: https://eclipse-ditto.github.io/ditto-examples/wot/models/ dimmable-colored-lamp 1.0.0 https://ditto.example.com
 ```
 
-This configuration will load the WoT model from `https://your-models.com/things/smart-lamp-1.1.0.tm.jsonld` and generate
+This configuration will load the WoT model from `https://eclipse-ditto.github.io/ditto-examples/wot/models/dimmable-colored-lamp-1.0.0.tm.jsonld` and generate
 an OpenAPI specification for it, using `https://ditto.example.com` as the Ditto base URL.
 
 
@@ -62,14 +62,14 @@ java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar <model-base-url> <model
 Parameters:
 
 - `model-base-url`: Base URL for model loading
-- `model-name`: Name of the WoT model (e.g., "smart-radiator-thermostat")
-- `model-version`: Version of the WoT model (e.g., "4.2.2")
+- `model-name`: Name of the WoT model (e.g., "dimmable-colored-lamp")
+- `model-version`: Version of the WoT model (e.g., "1.0.0")
 - `ditto-base-url` (optional): Base URL for the Ditto API (e.g., "https://ditto.example.com")
 
 Example:
 
 ```bash
-java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com/things smart-lamp 1.1.0
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://eclipse-ditto.github.io/ditto-examples/wot/models/ dimmable-colored-lamp 1.0.0
 ```
 
 #### 2. Quick Start with Example
@@ -81,7 +81,7 @@ mvn clean package
 
 2. **Run with a sample WoT model:**
 ```bash
-java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com/things smart-lamp 1.1.0
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://eclipse-ditto.github.io/ditto-examples/wot/models/ dimmable-colored-lamp 1.0.0
 ```
 
 3. **Check the generated output:**
@@ -94,9 +94,7 @@ code:
 
 ```bash
 # Use your own Ditto deployment
-java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com/things my-thing 1.1.0 https://ditto.example.com
-
-# Or configure via Maven plugin (recommended for production use)
+java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://eclipse-ditto.github.io/ditto-examples/wot/models/ dimmable-colored-lamp 1.0.0 https://ditto.example.com
 ```
 
 #### 4. Programmatic Usage
@@ -105,7 +103,7 @@ java -jar target/wot-to-openapi-generator-0-SNAPSHOT.jar https://your-models.com
 import org.eclipse.ditto.wot.openapi.generator.GeneratorStarter
 
 fun main() {
-    val args = arrayOf("https://your-models.com/things", "lamp", "0.1.0", "https://ditto.example.com")
+    val args = arrayOf("https://eclipse-ditto.github.io/ditto-examples/wot/models/", "dimmable-colored-lamp", "1.0.0", "https://ditto.example.com")
     GeneratorStarter.run(args)
 }
 ```
@@ -146,8 +144,8 @@ Program Arguments: https://your-models.com/repo building 1.0.0 https://ditto.myc
 ```
 
 
-**Note:** Replace `https://your-models.com` with your actual WoT model endpoint URLs.  
-E.g. if using the version `1.0.0` and model name `building`, the full URL would be `https://your-models.com/building-1.0.0.tm.jsonld`.
+**Note:** Replace `https://your-models.com/repo` with your actual WoT model endpoint URLs.  
+E.g. if using the version `1.0.0` and model name `building`, the full URL would be `https://your-models.com/repo/building-1.0.0.tm.jsonld`.
 
 ## Architecture
 
