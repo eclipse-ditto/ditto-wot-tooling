@@ -35,4 +35,4 @@
  * @see org.eclipse.ditto.wot.openapi.generator.providers for OpenAPI component providers
  * @see org.eclipse.ditto.wot.openapi.generator.loader for WoT model loading utilities
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator
+package org.eclipse.ditto.wot.openapi.generator

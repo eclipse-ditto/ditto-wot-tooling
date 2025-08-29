@@ -10,15 +10,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.loader
+package org.eclipse.ditto.wot.openapi.generator.loader
 
 import com.typesafe.config.ConfigFactory
 import kotlinx.coroutines.future.asDeferred
 import org.eclipse.ditto.base.model.headers.DittoHeaders
 import org.eclipse.ditto.wot.api.config.DefaultWotConfig
-import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.api.generator.WotThingModelExtensionResolver
 import org.eclipse.ditto.wot.api.provider.WotThingModelFetcher
+import org.eclipse.ditto.wot.model.ThingModel
 import java.net.URL
 import java.util.concurrent.Executors
 

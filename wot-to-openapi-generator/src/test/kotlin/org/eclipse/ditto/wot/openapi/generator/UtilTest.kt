@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package test.kotlin.org.eclipse.ditto.wot.openapi.generator
+package org.eclipse.ditto.wot.openapi.generator
 
 import org.eclipse.ditto.wot.openapi.generator.Utils.allUppercaseToLowercase
 import org.junit.jupiter.api.Assertions.assertEquals

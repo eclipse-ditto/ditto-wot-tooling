@@ -14,3 +14,4 @@ ajcore.*.txt
 .DS_Store
 .factorypath
 
+/wot-to-openapi-generator/generated/

@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.providers
+package org.eclipse.ditto.wot.openapi.generator.providers
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.models.media.IntegerSchema

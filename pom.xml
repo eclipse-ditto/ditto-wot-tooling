@@ -21,7 +21,7 @@
     <version>${revision}</version>
 
     <name>Eclipse Ditto :: WoT Tooling</name>
-    <description>Eclipse Ditto is a framework for creating and managing digital twins in the IoT.</description>
+    <description>Eclipse Ditto tools around WoT (Web of Things) integration</description>
     <url>https://eclipse.dev/ditto/</url>
     <inceptionYear>2025</inceptionYear>
 
@@ -67,7 +67,7 @@
     </distributionManagement>
 
     <modules>
-        <!-- add submodules here -->
+        <module>wot-to-openapi-generator</module>
     </modules>
 
     <properties>

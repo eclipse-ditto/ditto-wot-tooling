@@ -10,17 +10,17 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator
+package org.eclipse.ditto.wot.openapi.generator
 
+import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.Paths
+import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.openapi.generator.features.FeatureActionsPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.features.FeatureSchemaResolver
 import org.eclipse.ditto.wot.openapi.generator.features.FeaturesPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.thing.ActionsPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.thing.AttributesPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.thing.ThingPathsGenerator
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.Paths
-import org.eclipse.ditto.wot.model.ThingModel
 
 /**
  * Implementation of the OpenApiGenerator interface.

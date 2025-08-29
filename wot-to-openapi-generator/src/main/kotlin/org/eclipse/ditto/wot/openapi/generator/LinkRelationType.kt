@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator
+package org.eclipse.ditto.wot.openapi.generator
 
 /**
  * Enumeration representing different types of WoT link relations.

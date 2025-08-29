@@ -10,13 +10,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator
+package org.eclipse.ditto.wot.openapi.generator
 
-import org.eclipse.ditto.wot.openapi.generator.features.FeatureSchemaResolver
-import org.eclipse.ditto.wot.openapi.generator.loader.DittoBasedWotLoader
-import org.eclipse.ditto.wot.openapi.generator.providers.ErrorProvider
-import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
-import org.eclipse.ditto.wot.openapi.generator.thing.AttributeSchemaResolver
 import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.core.util.Yaml31
 import io.swagger.v3.oas.models.Components
@@ -31,6 +26,11 @@ import io.swagger.v3.oas.models.tags.Tag
 import kotlinx.coroutines.runBlocking
 import org.eclipse.ditto.wot.model.BaseLink
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.features.FeatureSchemaResolver
+import org.eclipse.ditto.wot.openapi.generator.loader.DittoBasedWotLoader
+import org.eclipse.ditto.wot.openapi.generator.providers.ErrorProvider
+import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
+import org.eclipse.ditto.wot.openapi.generator.thing.AttributeSchemaResolver
 import java.io.File
 import java.net.URL
 import kotlin.io.path.Path
@@ -69,14 +69,16 @@ object WotLoader {
      * for the main Thing, its attributes, actions, and features.
      *
      * @param thingModel The root WoT Thing model
-     * @param modelVersion Version of the model
+     * @param modelBaseUrl Base URL for model loading
      * @param modelName Name of the model
+     * @param modelVersion Version of the model
      * @param dittoBaseUrl Base URL for the Ditto API (e.g., "https://ditto.example.com")
      */
     fun generate(
         thingModel: ThingModel,
-        modelVersion: String,
+        modelBaseUrl: String,
         modelName: String,
+        modelVersion: String,
         dittoBaseUrl: String
     ) {
         val links = thingModel.links.getOrNull() ?: emptyList<BaseLink<*>>()
@@ -151,7 +153,7 @@ object WotLoader {
         if (!Path("generated").isDirectory()) {
             Path("generated").createDirectory()
         }
-        val fullModelPath = "$dittoBaseUrl/${modelName}-${modelVersion}.tm.jsonld"
+        val fullModelPath = "$modelBaseUrl/${modelName}-${modelVersion}.tm.jsonld"
         val modelYamlName = fullModelPath.substring(fullModelPath.lastIndexOf('/'))
             .replace(Regex("tm\\.jsonld"), "yaml")
         val outputStream = File("generated/$modelYamlName").outputStream()
@@ -272,15 +274,13 @@ object WotLoader {
     /**
      * Loads a WoT Thing model with the specified parameters.
      *
-     * @param version Version of the model
+     * @param modelBaseUrl Base URL for model loading
      * @param modelName Name of the model
-     * @param dittoBaseUrl Base URL for Ditto API
-     * @param baseUrl Base URL for model loading (if empty, uses dittoBaseUrl)
+     * @param version Version of the model
      * @return The loaded Thing model
      */
-    suspend fun loadModel(version: String, modelName: String, dittoBaseUrl: String, baseUrl: String): ThingModel {
-        val resolvedBaseUrl = baseUrl.ifEmpty { dittoBaseUrl }
-        val modelUrl = "$resolvedBaseUrl/${modelName}-${version}.tm.jsonld"
+    suspend fun loadModel(modelBaseUrl: String, modelName: String, version: String): ThingModel {
+        val modelUrl = "$modelBaseUrl/${modelName}-${version}.tm.jsonld"
         println("Generating from model: $modelUrl")
         val thingModel = loadModelFromUrl(modelUrl)
 

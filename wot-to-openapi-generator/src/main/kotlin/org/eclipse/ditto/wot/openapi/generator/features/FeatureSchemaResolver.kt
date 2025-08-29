@@ -10,11 +10,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.features
+package org.eclipse.ditto.wot.openapi.generator.features
 
-import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
-import org.eclipse.ditto.wot.openapi.generator.Utils.asPropertyName
-import org.eclipse.ditto.wot.openapi.generator.Utils.extractPropertyCategory
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
@@ -22,6 +19,9 @@ import org.eclipse.ditto.wot.model.ArraySchema
 import org.eclipse.ditto.wot.model.Properties
 import org.eclipse.ditto.wot.model.Property
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
+import org.eclipse.ditto.wot.openapi.generator.Utils.asPropertyName
+import org.eclipse.ditto.wot.openapi.generator.Utils.extractPropertyCategory
 import kotlin.jvm.optionals.getOrNull
 import org.eclipse.ditto.wot.model.ObjectSchema as WotObjectSchema
 

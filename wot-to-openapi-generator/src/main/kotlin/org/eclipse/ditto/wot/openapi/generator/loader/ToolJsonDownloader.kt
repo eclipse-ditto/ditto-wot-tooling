@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.loader
+package org.eclipse.ditto.wot.openapi.generator.loader
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*

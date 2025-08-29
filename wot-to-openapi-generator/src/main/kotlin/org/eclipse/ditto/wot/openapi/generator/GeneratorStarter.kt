@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator
+package org.eclipse.ditto.wot.openapi.generator
 
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
@@ -33,10 +33,10 @@ object GeneratorStarter {
      * Runs the generator with the provided command-line arguments.
      * 
      * @param args Command-line arguments array containing:
-     *             - modelVersion: Version of the WoT model
+     *             - modelBaseUrl: Base URL for model loading
      *             - modelName: Name of the WoT model
-     *             - dittoBaseUrl: Base URL for Ditto API (e.g., "https://ditto.example.com")
-     *             - baseUrl: Base URL for model loading (optional)
+     *             - modelVersion: Version of the WoT model
+     *             - dittoBaseUrl (optional): Base URL for Ditto API (e.g., "https://ditto.example.com")
      * @return Exit code (0 for success, 1 for failure)
      * @throws Exception if an error occurs during generation
      */
@@ -44,29 +44,25 @@ object GeneratorStarter {
     fun run(args: Array<String>): Int {
         logger.info("Run function started with args: ${args.joinToString(", ")}")
 
-        val modelVersion: String
+        var modelBaseUrl: String
         val modelName: String
+        val modelVersion: String
         var dittoBaseUrl = "https://ditto.example.com"
-        var baseUrl = ""
         when {
-            args.size < 2 -> {
-                logger.error("Please provide (i) model version, (ii) model name, and optionally (iii) ditto base URL and (iv) base URL for model loading")
+            args.size < 3 -> {
+                logger.error("Please provide (i) base URL for model loading, (ii) model name, (iii) model version  and optionally (iv) ditto base URL")
                 return 1
             }
-            args.size == 2 -> {
-                modelVersion = args[0]
-                modelName = args[1]
-            }
             args.size == 3 -> {
-                modelVersion = args[0]
+                modelBaseUrl = args[0]
                 modelName = args[1]
-                dittoBaseUrl = args[2]
+                modelVersion = args[2]
             }
             args.size == 4 -> {
-                modelVersion = args[0]
+                modelBaseUrl = args[0]
                 modelName = args[1]
-                dittoBaseUrl = args[2]
-                baseUrl = args[3]
+                modelVersion = args[2]
+                dittoBaseUrl = args[3]
             }
             else -> {
                 logger.error("Too many arguments provided")
@@ -74,11 +70,15 @@ object GeneratorStarter {
             }
         }
 
-        logger.info("-------------------------------------> Starting generator with args: $modelVersion, $modelName, dittoBaseUrl: $dittoBaseUrl")
+        if (modelBaseUrl.endsWith("/")) {
+            modelBaseUrl = modelBaseUrl.dropLast(1)
+        }
+
+        logger.info("-------------------------------------> Starting generator with args: $modelBaseUrl, $modelName, $modelVersion, dittoBaseUrl: $dittoBaseUrl")
         try {
             runBlocking {
-                val rootModel = wotLoader.loadModel(modelVersion, modelName, dittoBaseUrl, baseUrl)
-                wotLoader.generate(rootModel, modelVersion, modelName, dittoBaseUrl)
+                val rootModel = wotLoader.loadModel(modelBaseUrl, modelName, modelVersion)
+                wotLoader.generate(rootModel, modelBaseUrl, modelName, modelVersion, dittoBaseUrl)
             }
             logger.info("-------------------------------------> Generator finished")
             return 0

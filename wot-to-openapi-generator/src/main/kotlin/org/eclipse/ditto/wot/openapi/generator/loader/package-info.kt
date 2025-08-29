@@ -29,4 +29,4 @@
  * These components provide the foundation for accessing and parsing
  * WoT Thing models that will be converted to OpenAPI specifications.
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.loader
+package org.eclipse.ditto.wot.openapi.generator.loader

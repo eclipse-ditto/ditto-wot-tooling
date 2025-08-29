@@ -10,12 +10,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package main.kotlin.org.eclipse.ditto.wot.openapi.generator.features
+package org.eclipse.ditto.wot.openapi.generator.features
 
-import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
-import org.eclipse.ditto.wot.openapi.generator.providers.ApiResponsesProvider
-import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
-import org.eclipse.ditto.wot.openapi.generator.providers.addApiResponse
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
@@ -28,6 +24,10 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import org.eclipse.ditto.wot.model.Action
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
+import org.eclipse.ditto.wot.openapi.generator.providers.ApiResponsesProvider
+import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
+import org.eclipse.ditto.wot.openapi.generator.providers.addApiResponse
 import kotlin.jvm.optionals.getOrNull
 
 object FeatureActionsPathsGenerator {
