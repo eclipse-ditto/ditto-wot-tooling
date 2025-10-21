@@ -10,8 +10,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
- * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
- */
 
 package org.eclipse.ditto.wot.kotlin.generator
 
