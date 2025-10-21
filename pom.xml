@@ -68,6 +68,7 @@
 
     <modules>
         <module>wot-to-openapi-generator</module>
+        <module>wot-kotlin-generator</module>
     </modules>
 
     <properties>

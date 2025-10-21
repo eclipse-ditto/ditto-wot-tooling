@@ -1,0 +1,280 @@
+<?xml version="1.0"?>
+<!--
+  ~ Copyright (c) 2025 Contributors to the Eclipse Foundation
+  ~
+  ~ See the NOTICE file(s) distributed with this work for additional
+  ~ information regarding copyright ownership.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License 2.0 which is available at
+  ~ http://www.eclipse.org/legal/epl-2.0
+  ~
+  ~ SPDX-License-Identifier: EPL-2.0
+  -->
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.eclipse.ditto</groupId>
+        <artifactId>ditto-wot-tooling</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>wot-kotlin-generator</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Eclipse Ditto :: WoT Kotlin Generator</name>
+    <description>A Maven plugin for converting Web of Things (WoT) Thing models to Kotlin DSLs for creating Ditto thing format</description>
+    <url>https://github.com/eclipse-ditto/ditto-wot-tooling/wot-kotlin-generator</url>
+
+    <modules>
+        <module>wot-kotlin-generator-common-models</module>
+        <module>wot-kotlin-generator-plugin</module>
+    </modules>
+
+    <properties>
+        <kotlin.version>2.1.21</kotlin.version>
+        <kotlin.stdlib.version>2.0.21</kotlin.stdlib.version>
+        <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
+
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
+
+        <ditto-wot-model.version>3.8.0-M4</ditto-wot-model.version>
+        <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
+        <ktor-client.version>3.2.0</ktor-client.version>
+        <jackson.version>2.19.2</jackson.version>
+        <kotlin-poet.version>2.2.0</kotlin-poet.version>
+        <slf4j.version>2.0.17</slf4j.version>
+
+        <compiler-plugin.version>3.14.0</compiler-plugin.version>
+        <skipITs>true</skipITs>
+        <surefire-plugin.version>3.5.3</surefire-plugin.version>
+        <junit-jupiter.version>5.12.2</junit-jupiter.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.eclipse.ditto</groupId>
+                <artifactId>ditto-wot-api</artifactId>
+                <version>${ditto-wot-model.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.ditto</groupId>
+                <artifactId>ditto-thingsearch-model</artifactId>
+                <version>${ditto-wot-model.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.ditto</groupId>
+                <artifactId>ditto-json</artifactId>
+                <version>${ditto-wot-model.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.ditto</groupId>
+                <artifactId>ditto-wot-model</artifactId>
+                <version>${ditto-wot-model.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.ditto</groupId>
+                <artifactId>ditto-things-model</artifactId>
+                <version>${ditto-wot-model.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-client-core-jvm</artifactId>
+                <version>${ktor-client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-client-cio-jvm</artifactId>
+                <version>${ktor-client.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-bom</artifactId>
+                <type>pom</type>
+                <scope>import</scope>
+                <version>${kotlin.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jetbrains.kotlinx</groupId>
+                <artifactId>kotlinx-coroutines-bom</artifactId>
+                <type>pom</type>
+                <scope>import</scope>
+                <version>${kotlinx-coroutines.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.squareup</groupId>
+                <artifactId>kotlinpoet-jvm</artifactId>
+                <version>${kotlin-poet.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jcabi</groupId>
+                <artifactId>jcabi-maven-slf4j</artifactId>
+                <version>0.12.2</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.maven</groupId>
+                <artifactId>maven-plugin-api</artifactId>
+                <version>3.9.11</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.plugin-tools</groupId>
+                <artifactId>maven-plugin-tools-api</artifactId>
+                <version>3.15.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.plugin-tools</groupId>
+                <artifactId>maven-plugin-annotations</artifactId>
+                <version>3.15.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-plugin-plugin</artifactId>
+                    <version>3.15.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <compilerArgs>
+                            <arg>-parameters</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire-plugin.version}</version>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <maven.home>${maven.home}</maven.home>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${surefire-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <native.image.path>${project.build.directory}/${project.build.finalName}-runner
+                            </native.image.path>
+                            <maven.home>${maven.home}</maven.home>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.jetbrains.kotlin</groupId>
+                    <artifactId>kotlin-maven-plugin</artifactId>
+                    <version>${kotlin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>compile</id>
+                            <goals>
+                                <goal>compile</goal>
+                            </goals>
+                            <configuration>
+                                <sourceDirs>
+                                    <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
+                                </sourceDirs>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>test-compile</id>
+                            <goals>
+                                <goal>test-compile</goal>
+                            </goals>
+                            <configuration>
+                                <sourceDirs>
+                                    <sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
+                                </sourceDirs>
+                            </configuration>
+                        </execution>
+                    </executions>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.jetbrains.kotlin</groupId>
+                            <artifactId>kotlin-maven-allopen</artifactId>
+                            <version>${kotlin.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <javaParameters>true</javaParameters>
+                        <jvmTarget>${java.version}</jvmTarget>
+                        <compilerPlugins>
+                            <plugin>all-open</plugin>
+                        </compilerPlugins>
+                        <pluginOptions>
+                            <option>all-open:annotation=jakarta.ws.rs.Path</option>
+                            <option>all-open:annotation=jakarta.enterprise.context.ApplicationScoped</option>
+                            <option>all-open:annotation=jakarta.persistence.Entity</option>
+                        </pluginOptions>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>
+
