@@ -32,18 +32,17 @@
 
     <modules>
         <module>wot-kotlin-generator-common-models</module>
-        <module>wot-kotlin-generator-plugin</module>
+        <module>wot-kotlin-generator-maven-plugin</module>
     </modules>
 
     <properties>
-        <kotlin.version>2.1.21</kotlin.version>
-        <kotlin.stdlib.version>2.0.21</kotlin.stdlib.version>
+        <kotlin.version>2.2.10</kotlin.version>
         <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
 
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
 
-        <ditto-wot-model.version>3.8.0-M4</ditto-wot-model.version>
+        <ditto-wot-model.version>3.8.2</ditto-wot-model.version>
         <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
         <ktor-client.version>3.2.0</ktor-client.version>
         <jackson.version>2.19.2</jackson.version>

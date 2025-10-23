@@ -42,9 +42,7 @@ class MapObjectPropertyDeserializer<T : Any> : JsonDeserializer<MapObjectPropert
         val actualType = contextualType ?: throw IllegalArgumentException("Contextual type is null")
         val concreteClass = actualType.rawClass.kotlin
 
-        if (concreteClass.isAbstract) {
-            throw IllegalArgumentException("Expected a concrete class, but got an abstract class: ${concreteClass.simpleName}")
-        }
+        require(!concreteClass.isAbstract) { "Expected a concrete class, but got an abstract class: ${concreteClass.simpleName}" }
 
         val instance = createInstance(concreteClass)
         val mapObjectProperty = instance as MapObjectProperty<T>

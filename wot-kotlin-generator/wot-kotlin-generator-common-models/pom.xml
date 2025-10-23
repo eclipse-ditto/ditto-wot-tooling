@@ -26,7 +26,7 @@
     <artifactId>wot-kotlin-generator-common-models</artifactId>
     <packaging>jar</packaging>
 
-    <name>Eclipse Ditto :: WoT Kotlin Generator Common Model</name>
+    <name>Eclipse Ditto :: WoT Kotlin Generator :: Common Model</name>
     <description>Common model classes for the WoT Kotlin Generator Plugin</description>
 
     <dependencies>
