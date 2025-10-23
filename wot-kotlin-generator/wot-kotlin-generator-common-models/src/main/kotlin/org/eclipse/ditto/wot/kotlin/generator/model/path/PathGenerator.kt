@@ -17,7 +17,7 @@ import org.eclipse.ditto.thingsearch.model.SearchModelFactory
 import org.eclipse.ditto.thingsearch.model.SearchProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction0
-import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.KProperty1
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.jvm.javaField
 
@@ -37,7 +37,7 @@ class PathGenerator<R>(val path: String = "") {
          * @param start the starting property.
          * @return a new PathGenerator instance with the initial path.
          */
-        fun <T: Any, R> from(start: KMutableProperty1<T, R?>): PathGenerator<R?> {
+        fun <T: Any, R> from(start: KProperty1<T, R?>): PathGenerator<R?> {
             val rootPath = (start.javaField?.declaringClass?.kotlin?.companionObjectInstance as? HasPath)?.startPath()
                 ?: ""
             val fullPath = if (rootPath.isEmpty()) start.name else "$rootPath/${start.name}"
@@ -62,7 +62,7 @@ class PathGenerator<R>(val path: String = "") {
      * @param nextRef the nested property to add to the path.
      * @return a new PathGenerator instance with the updated path.
      */
-    fun <N> add(nextRef: KMutableProperty1<out R?, N?>): PathGenerator<N?> {
+    fun <N> add(nextRef: KProperty1<out R?, N?>): PathGenerator<N?> {
         val name = nextRef.name
         val returnClass = nextRef.returnType.classifier as? KClass<*>
 
