@@ -37,11 +37,11 @@
         <kotlin.stdlib.version>2.2.10</kotlin.stdlib.version>
         <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
 
-        <ditto.version>3.8.0-M4</ditto.version>
+        <ditto.version>3.8.6</ditto.version>
         <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
         <ktor-client.version>3.2.0</ktor-client.version>
         <caffeine.version>3.2.2</caffeine.version>
-        <swagger-sdk.version>2.2.35</swagger-sdk.version>
+        <swagger-sdk.version>2.2.40</swagger-sdk.version>
         <slf4j.version>2.0.17</slf4j.version>
         <logback.version>1.5.19</logback.version>
 

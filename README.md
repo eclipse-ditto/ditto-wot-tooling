@@ -11,3 +11,11 @@ Thing Models (JSON-LD format) into Eclipse Ditto OpenAPI 3.1.0 specifications.
 
 It is available as command line interface (CLI) to be executed with `java -jar`, but can also be used as a 
 library in your own applications.
+
+### WoT Kotlin Generator Maven plugin
+
+The [WoT Kotlin Generator Maven plugin](wot-kotlin-generator) is a Maven plugin that generates Kotlin code 
+(e.g. data classes) based on WoT (Web of Things) Thing Models (JSON-LD format) it downloads via HTTP.
+
+The generated code can be used as type-safe representation of WoT Thing Models in your own Kotlin applications.
+
