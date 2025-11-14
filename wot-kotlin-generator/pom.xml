@@ -272,6 +272,13 @@
                         </pluginOptions>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.jetbrains.dokka</groupId>
+                    <artifactId>dokka-maven-plugin</artifactId>
+                    <configuration>
+                        <includeNonPublic>true</includeNonPublic>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>

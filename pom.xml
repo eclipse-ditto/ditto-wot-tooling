@@ -66,6 +66,21 @@
         </snapshotRepository>
     </distributionManagement>
 
+    <developers>
+        <developer>
+            <id>tjaeckle</id>
+            <name>Thomas Jaeckle</name>
+            <email>thomas.jaeckle@beyonnex.io</email>
+            <url>https://github.com/thjaeckle</url>
+            <organization>beyonnex.io GmbH</organization>
+            <organizationUrl>https://beyonnex.io</organizationUrl>
+            <roles>
+                <role>Lead</role>
+                <role>Committer</role>
+            </roles>
+        </developer>
+    </developers>
+
     <modules>
         <module>wot-to-openapi-generator</module>
         <module>wot-kotlin-generator</module>
@@ -143,13 +158,9 @@
                     <version>3.1.2</version>
                 </plugin>
                 <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.8.0</version>
-                    <configuration>
-                        <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
-                        <detectJavaApiLink>false</detectJavaApiLink>
-                    </configuration>
+                    <groupId>org.jetbrains.dokka</groupId>
+                    <artifactId>dokka-maven-plugin</artifactId>
+                    <version>2.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -440,13 +451,24 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <groupId>org.jetbrains.dokka</groupId>
+                        <artifactId>dokka-maven-plugin</artifactId>
                         <executions>
+                            <!-- Generate the documentation -->
                             <execution>
-                                <id>attach-javadocs</id>
+                                <id>dokka-html</id>
+                                <phase>prepare-package</phase>
                                 <goals>
-                                    <goal>jar</goal>
+                                    <goal>dokka</goal>
+                                </goals>
+                            </execution>
+
+                            <!-- Attach it as javadoc.jar -->
+                            <execution>
+                                <id>attach-javadoc</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>javadocJar</goal>
                                 </goals>
                             </execution>
                         </executions>
@@ -497,18 +519,6 @@
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
                                 <goals>
                                     <goal>jar</goal>
                                 </goals>
