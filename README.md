@@ -6,6 +6,8 @@
 
 ### WoT to OpenAPI Generator
 
+[![Maven Central](https://img.shields.io/maven-central/v/org.eclipse.ditto/wot-to-openapi-generator?label=maven)](https://search.maven.org/search?q=g:org.eclipse.ditto%20AND%20a:wot-to-openapi-generator)
+
 The [WoT to OpenAPI Generator](wot-to-openapi-generator) is a Kotlin-based tool that converts WoT (Web of Things) 
 Thing Models (JSON-LD format) into Eclipse Ditto OpenAPI 3.1.0 specifications.
 
@@ -13,6 +15,8 @@ It is available as command line interface (CLI) to be executed with `java -jar`,
 library in your own applications.
 
 ### WoT Kotlin Generator Maven plugin
+
+[![Maven Central](https://img.shields.io/maven-central/v/org.eclipse.ditto/wot-kotlin-generator-maven-plugin?label=maven)](https://search.maven.org/search?q=g:org.eclipse.ditto%20AND%20a:wot-kotlin-generator-maven-plugin)
 
 The [WoT Kotlin Generator Maven plugin](wot-kotlin-generator) is a Maven plugin that generates Kotlin code 
 (e.g. data classes) based on WoT (Web of Things) Thing Models (JSON-LD format) it downloads via HTTP.

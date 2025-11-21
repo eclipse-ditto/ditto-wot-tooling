@@ -1,5 +1,7 @@
 # Eclipse Ditto™ - WoT (Web of Things) Tooling :: WoT Kotlin Generator :: Maven plugin
 
+[![Maven Central](https://img.shields.io/maven-central/v/org.eclipse.ditto/wot-kotlin-generator-maven-plugin?label=maven)](https://search.maven.org/search?q=g:org.eclipse.ditto%20AND%20a:wot-kotlin-generator-maven-plugin)
+
 A tool for generating type-safe Kotlin data classes and DSLs from Web of Things (WoT) Thing models with path 
 generation capabilities for Eclipse Ditto
 

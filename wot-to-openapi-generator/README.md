@@ -1,5 +1,8 @@
 # Eclipse Ditto™ - WoT (Web of Things) Tooling :: WoT to OpenAPI Generator
 
+[![Maven Central](https://img.shields.io/maven-central/v/org.eclipse.ditto/wot-to-openapi-generator?label=maven)](https://search.maven.org/search?q=g:org.eclipse.ditto%20AND%20a:wot-to-openapi-generator)
+
+
 A Kotlin-based tool that converts WoT (Web of Things) Thing Models (JSON-LD format) into OpenAPI 3.1.0 specifications
 describing Ditto HTTP endpoints.  
 This generator enables seamless integration between IoT devices and REST APIs by automatically creating comprehensive
