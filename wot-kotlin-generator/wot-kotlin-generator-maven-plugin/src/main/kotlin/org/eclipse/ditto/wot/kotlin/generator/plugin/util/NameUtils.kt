@@ -45,10 +45,18 @@ fun asClassNameWithStrategy(
 ): String {
     return when (strategy) {
         ClassNamingStrategy.COMPOUND_ALL -> {
-            if (parentName != null) {
-                "${asClassName(parentName)}${asClassName(originalName)}"
+            val originalClassName = asClassName(originalName)
+            if (parentName == null) {
+                return originalClassName
+            }
+
+            // Avoid duplication: if originalName already contains parentName
+            val originalLower = originalName.lowercase()
+            val parentLower = parentName.lowercase()
+            if (originalLower.contains(parentLower) && originalLower != parentLower) {
+                originalClassName
             } else {
-                asClassName(originalName)
+                "${asClassName(parentName)}$originalClassName"
             }
         }
         ClassNamingStrategy.ORIGINAL_THEN_COMPOUND -> {
