@@ -15,7 +15,7 @@ package org.eclipse.ditto.wot.kotlin.generator.plugin.util
 object Const {
     const val ATTRIBUTES_CLASS_NAME = "Attributes"
     const val FEATURES_CLASS_NAME = "Features"
-    const val COMMON_PACKAGE = "org.eclipse.ditto.wot.kotlin.generator.model"
+    const val COMMON_PACKAGE = "org.eclipse.ditto.wot.kotlin.generator.common.model"
     const val COMMON_PACKAGE_PATH = "$COMMON_PACKAGE.path"
     const val COMMON_PACKAGE_FEATURES = "$COMMON_PACKAGE.features"
     const val COMMON_PACKAGE_ATTRIBUTES = "$COMMON_PACKAGE.attributes"
