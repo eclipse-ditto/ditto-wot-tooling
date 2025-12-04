@@ -29,6 +29,7 @@ import org.eclipse.ditto.wot.kotlin.generator.plugin.strategy.EnumGenerationStra
 import org.eclipse.ditto.wot.kotlin.generator.plugin.strategy.IEnumGenerationStrategy
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.*
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.Const.ATTRIBUTES_CLASS_NAME
+import org.eclipse.ditto.wot.kotlin.generator.plugin.util.EnumConflictUtils
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.Const.COMMON_PACKAGE
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.Const.EXISTING_ATTRIBUTES_PACKAGE
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.Const.EXISTING_FEATURES_PACKAGE
@@ -319,6 +320,74 @@ object ClassGenerator {
     fun checkForEnumConflict(packageName: String, enumName: String) {
         val enumFilePath = Paths.get(outputDir, packageName.replace(".", "/"), "$enumName.kt")
         require(!Files.exists(enumFilePath)) { "Enum $enumName already exists in package $packageName" }
+    }
+
+    /**
+     * Checks for enum naming conflicts with value validation.
+     *
+     * This method performs a two-stage conflict check:
+     * 1. First checks the registry for enums generated in the current execution
+     * 2. Then checks the file system for enums from previous executions
+     *
+     * If an enum with the same name exists but has different values, an exception is thrown
+     * to prevent generator bugs where multiple properties with the same name but different
+     * enum values incorrectly share the same enum type.
+     *
+     * @param packageName The package to check
+     * @param enumName The enum name to check for conflicts
+     * @param enumValues The set of enum constant names for this enum
+     * @throws IllegalArgumentException if the enum already exists with different values or as a file from a previous generation
+     */
+    fun checkForEnumConflict(packageName: String, enumName: String, enumValues: Set<String>) {
+        val existingEnum = EnumRegistry.getEnumByName(enumName)
+        if (existingEnum != null) {
+            val existingValues = extractEnumValues(existingEnum)
+            if (existingValues != enumValues) {
+                throw EnumConflictUtils.createEnumConflictException(enumName, packageName, existingValues, enumValues)
+            }
+            return
+        }
+        
+        val enumFilePath = Paths.get(outputDir, packageName.replace(".", "/"), "$enumName.kt")
+        if (Files.exists(enumFilePath)) {
+            throw IllegalArgumentException(
+                "Enum conflict detected: Enum '$enumName' already exists in package '$packageName' " +
+                "as a file from a previous generation.\n" +
+                "This might indicate a conflict if the enum values have changed.\n" +
+                "Please run 'mvn clean' to remove generated files and regenerate, or ensure enum names are unique."
+            )
+        }
+    }
+    
+    /**
+     * Extracts enum constant names from a TypeSpec.
+     *
+     * This method handles two types of enums:
+     * - Standard enum classes: extracts enum constant keys
+     * - Sealed class enums (object enums): extracts object names
+     *
+     * @param enumSpec The enum TypeSpec to extract values from
+     * @return Set of enum constant names
+     */
+    private fun extractEnumValues(enumSpec: TypeSpec): Set<String> {
+        val values = mutableSetOf<String>()
+        
+        when {
+            enumSpec.isEnum -> {
+                enumSpec.enumConstants.forEach { enumConstant ->
+                    values.add(enumConstant.key)
+                }
+            }
+            else -> {
+                enumSpec.typeSpecs.forEach { typeSpec ->
+                    if (typeSpec.kind == TypeSpec.Kind.OBJECT && !typeSpec.isCompanion) {
+                        values.add(typeSpec.name ?: "")
+                    }
+                }
+            }
+        }
+        
+        return values
     }
 
     /**

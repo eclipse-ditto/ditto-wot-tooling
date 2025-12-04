@@ -13,11 +13,26 @@
 package org.eclipse.ditto.wot.kotlin.generator.plugin.clazz
 
 import com.squareup.kotlinpoet.TypeSpec
+import org.eclipse.ditto.wot.kotlin.generator.plugin.util.EnumConflictUtils
 import java.util.*
 
+/**
+ * Registry for managing enum type specifications during code generation.
+ *
+ * This registry tracks enums by their name, package, and values to detect conflicts
+ * where the same enum name is used with different values in the same package.
+ * Such conflicts indicate a generator bug where multiple properties with the same
+ * name but different enum values are incorrectly sharing the same enum type.
+ */
 object EnumRegistry {
     private val enums = mutableMapOf<String, TypeSpec>()
     private val nameToKey = mutableMapOf<String, String>()
+    /**
+     * Tracks enum values by package and name to detect conflicts.
+     * Key: Pair(packageName, enumName)
+     * Value: Set of enum constant names
+     */
+    private val enumValuesByPackageAndName = mutableMapOf<Pair<String, String>, Set<String>>()
 
     /**
      * Registers an enum type specification for inline enums (without UUID suffix).
@@ -33,8 +48,45 @@ object EnumRegistry {
     }
 
     /**
-     * Registers an enum type specification.
+     * Registers an enum type specification with value validation.
      *
+     * This method validates that if an enum with the same name already exists in the package,
+     * it must have the same enum values. If different values are detected, an exception is thrown
+     * to prevent generator bugs where multiple properties with the same name but different enum
+     * values incorrectly share the same enum type.
+     *
+     * @param typeSpec The type specification for the enum
+     * @param packageName The package name where the enum is being registered
+     * @param enumValues The set of enum constant names for this enum
+     * @return The key for the registered enum
+     * @throws IllegalArgumentException if an enum with the same name but different values already exists
+     */
+    fun registerEnum(typeSpec: TypeSpec, packageName: String, enumValues: Set<String>): String {
+        val enumName = typeSpec.name!!
+        val packageAndName = Pair(packageName, enumName)
+        val existingValues = enumValuesByPackageAndName[packageAndName]
+        
+        if (existingValues != null) {
+            if (existingValues != enumValues) {
+                throw EnumConflictUtils.createEnumConflictException(enumName, packageName, existingValues, enumValues)
+            }
+            val existingKey = nameToKey[enumName]
+            return existingKey ?: generateUniqueKey(enumName).also {
+                enums[it] = typeSpec
+                nameToKey[enumName] = it
+            }
+        }
+        
+        val newKey = generateUniqueKey(enumName)
+        enums[newKey] = typeSpec
+        nameToKey[enumName] = newKey
+        enumValuesByPackageAndName[packageAndName] = enumValues
+        return newKey
+    }
+    
+    /**
+     * Registers an enum type specification (backward compatibility - without value checking).
+     * 
      * @param typeSpec The type specification for the enum
      * @return The key for the registered enum
      */
