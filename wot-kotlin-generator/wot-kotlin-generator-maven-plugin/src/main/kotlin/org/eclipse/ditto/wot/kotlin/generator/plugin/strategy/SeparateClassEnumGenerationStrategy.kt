@@ -19,6 +19,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.eclipse.ditto.json.JsonValue
 import org.eclipse.ditto.wot.kotlin.generator.common.model.enum.JsonEnum
 import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.ClassGenerator
+import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.EnumRegistry
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.*
 import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.ObjectSchema
@@ -129,6 +130,10 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
 
         val enumSpecBuilder = TypeSpec.enumBuilder(enumName)
 
+        val enumConstantNames = enumValues.map {
+            asEnumConstantName(enumName, it.toString())
+        }.toSet()
+
         if (isSimpleEnum) {
             enumValues.forEach {
                 enumSpecBuilder.addEnumConstant(asEnumConstantName(enumName, it.toString()))
@@ -158,8 +163,10 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
             )
         }
 
-        val enumClassName = ClassName("", enumName)
         val enumSpec = enumSpecBuilder.build()
+        
+        classGenerator.checkForEnumConflict(packageName, enumName, enumConstantNames)
+        EnumRegistry.registerEnum(enumSpec, packageName, enumConstantNames)
         ClassGenerator.generateNewClass(enumSpec, enumName, packageName)
 
         return enumName
@@ -179,6 +186,10 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
             )
             .addProperty(PropertySpec.builder("_value", valueType).initializer("_value").build())
 
+        val enumConstantNames = enumValues.map {
+            asEnumConstantName(enumName, it.toString())
+        }.toSet()
+
         addCustomEnumConstants(enumSpecBuilder, enumName, enumValues, valueType)
 
         val enumClassName = ClassName("", enumName)
@@ -191,6 +202,9 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         )
 
         val enumSpec = enumSpecBuilder.build()
+        
+        classGenerator.checkForEnumConflict(packageName, enumName, enumConstantNames)
+        EnumRegistry.registerEnum(enumSpec, packageName, enumConstantNames)
         ClassGenerator.generateNewClass(enumSpec, enumName, packageName)
 
         return enumName
@@ -313,7 +327,13 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
 
         enumSpecBuilder.addType(companionBuilder.build())
 
+        val enumConstantNames = enumArray.map {
+            asValidEnumConstant(it.asObject().getValue("name").getOrNull().toString())
+        }.toSet()
+
         val enumSpec = enumSpecBuilder.build()
+        classGenerator.checkForEnumConflict(packageName, enumName, enumConstantNames)
+        EnumRegistry.registerEnum(enumSpec, packageName, enumConstantNames)
         ClassGenerator.generateNewClass(enumSpec, enumName, packageName)
 
         return enumName
