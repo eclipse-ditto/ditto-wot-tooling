@@ -1212,9 +1212,21 @@ object ClassGenerator {
             categoryCreatorFunctions = categorizedProperties.map { (category, _) ->
                 val categoryAsClass = asClassName(category)
                 val categoryClass = ClassName.bestGuess(asClassName(category))
-                FunSpec.builder(category)
+                val funSpecBuilder = FunSpec.builder(category)
                     .returns(categoryClass)
-                    .addParameter("block", LambdaTypeName.get(receiver = categoryClass, returnType = UNIT))
+
+                if (config?.generateSuspendDsl == true) {
+                    funSpecBuilder.addModifiers(KModifier.SUSPEND)
+                }
+
+                val lambdaType = if (config?.generateSuspendDsl == true) {
+                    LambdaTypeName.get(receiver = categoryClass, returnType = UNIT).copy(suspending = true)
+                } else {
+                    LambdaTypeName.get(receiver = categoryClass, returnType = UNIT)
+                }
+
+                funSpecBuilder
+                    .addParameter("block", lambdaType)
                     .addStatement("val·$category·=·$categoryAsClass()")
                     .addStatement("$category.block()")
                     .addStatement("this.$category·=·$category")
