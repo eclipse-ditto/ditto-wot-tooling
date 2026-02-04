@@ -90,7 +90,10 @@ object WotLoader {
             .servers(provideServers(dittoBaseUrl))
             .tags(provideTags(thingModel))
             .security(
-                listOf(SecurityRequirement().addList("Bearer"))
+                listOf(
+                    SecurityRequirement().addList("OpenIDConnect"),
+                    SecurityRequirement().addList("Bearer")
+                )
             )
 
         openAPI.components(
@@ -105,6 +108,10 @@ object WotLoader {
                 )
                 .securitySchemes(
                     mapOf(
+                        "OpenIDConnect" to SecurityScheme()
+                            .type(SecurityScheme.Type.OPENIDCONNECT)
+                            .description("OpenID Connect Discovery URL. The placeholder is replaced by Swagger UI when configured.")
+                            .openIdConnectUrl("__OIDC_DISCOVERY_URL__"),
                         "Bearer" to SecurityScheme()
                             .name("Bearer")
                             .type(SecurityScheme.Type.HTTP)
@@ -313,7 +320,6 @@ object WotLoader {
     }
 
 }
-
 
 
 
