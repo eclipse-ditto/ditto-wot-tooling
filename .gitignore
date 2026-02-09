@@ -15,3 +15,4 @@ ajcore.*.txt
 .factorypath
 
 /wot-to-openapi-generator/generated/
+/.claude/settings.local.json
