@@ -181,7 +181,11 @@ Your WoT Thing models should:
 
 ## Acknowledgments
 
+The initial implementation of the WoT to OpenAPI Generator was created during a hackathon by
+[Nenad Ukic (@enenuki)](https://github.com/enenuki),
+[Hussein Ahmed (@hu-ahmed)](https://github.com/hu-ahmed), and
+[Thomas Jaeckle (@thjaeckle)](https://github.com/thjaeckle).
+
 - Built on top of [Eclipse Ditto](https://www.eclipse.dev/ditto/) WoT libraries
 - Uses [Swagger/OpenAPI](https://swagger.io/) for API specification generation
-- Inspired by the Eclipse IoT ecosystem
 

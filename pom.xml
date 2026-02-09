@@ -79,6 +79,27 @@
                 <role>Committer</role>
             </roles>
         </developer>
+        <developer>
+            <id>husseinahmed</id>
+            <name>Hussein Ahmed</name>
+            <email>hussein.ahmed@beyonnex.io</email>
+            <url>https://github.com/hu-ahmed</url>
+            <organization>beyonnex.io GmbH</organization>
+            <organizationUrl>https://beyonnex.io</organizationUrl>
+            <roles>
+                <role>Contributor</role>
+            </roles>
+        </developer>
+        <developer>
+            <name>Nenad Ukic</name>
+            <email>nenad.ukic@beyonnex.io</email>
+            <url>https://github.com/enenuki</url>
+            <organization>beyonnex.io GmbH</organization>
+            <organizationUrl>https://beyonnex.io</organizationUrl>
+            <roles>
+                <role>Contributor</role>
+            </roles>
+        </developer>
     </developers>
 
     <modules>

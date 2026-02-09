@@ -142,6 +142,11 @@ This project is licensed under the [Eclipse Public License v2.0](../LICENSE).
 - **Issues**: Report bugs via [GitHub Issues](https://github.com/eclipse-ditto/ditto-wot-tooling/issues)
 - **Community**: Join the [Eclipse Ditto community](https://www.eclipse.org/ditto/community.html)
 
+## Acknowledgments
+
+The idea for the WoT Kotlin Generator and the first implementation of the code generator and Kotlin DSL were created by
+[Nenad Ukic (@enenuki)](https://github.com/enenuki).
+
 ## Related Projects
 
 - [Eclipse Ditto](https://www.eclipse.org/ditto/) - IoT middleware for digital twins

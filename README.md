@@ -23,3 +23,14 @@ The [WoT Kotlin Generator Maven plugin](wot-kotlin-generator) is a Maven plugin 
 
 The generated code can be used as type-safe representation of WoT Thing Models in your own Kotlin applications.
 
+## Acknowledgments
+
+This project would not exist without the contributions of the following people:
+
+- [Nenad Ukic (@enenuki)](https://github.com/enenuki) — came up with the idea for the WoT Kotlin Generator and
+  created the first implementation of the code generator and Kotlin DSL. Also participated in the hackathon that
+  produced the initial WoT to OpenAPI Generator.
+- [Hussein Ahmed (@hu-ahmed)](https://github.com/hu-ahmed) — participated in the hackathon that produced the initial
+  WoT to OpenAPI Generator and is the main contributor providing additional features and bugfixing of the tools.
+- [Thomas Jaeckle (@thjaeckle)](https://github.com/thjaeckle) — participated in the hackathon that produced the
+  initial WoT to OpenAPI Generator and continued development of both tools.
