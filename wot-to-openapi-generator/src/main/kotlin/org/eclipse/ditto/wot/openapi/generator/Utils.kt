@@ -16,6 +16,8 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.*
 import org.eclipse.ditto.json.JsonObject
 import org.eclipse.ditto.json.JsonPointer
+import org.eclipse.ditto.json.JsonValue
+import org.eclipse.ditto.wot.model.Action
 import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.MultipleDataSchema
 import org.eclipse.ditto.wot.model.Property
@@ -32,6 +34,20 @@ import org.eclipse.ditto.wot.model.SingleDataSchema as WotSchema
  * and type validation used throughout the OpenAPI generation process.
  */
 object Utils {
+
+    private const val DITTO_DEPRECATION_NOTICE = "ditto:deprecationNotice"
+    private const val DEPRECATED = "deprecated"
+    private const val SUPERSEDED_BY = "supersededBy"
+    private const val REMOVAL_VERSION = "removalVersion"
+
+    /**
+     * Structured representation of the Ditto WoT deprecation notice extension.
+     */
+    data class DeprecationNotice(
+        val deprecated: Boolean,
+        val supersededBy: String? = null,
+        val removalVersion: String? = null
+    )
 
     /**
      * Converts a string to a valid Kotlin class name by applying proper naming conventions.
@@ -381,5 +397,93 @@ object Utils {
     fun extractPropertyCategory(property: Property): String? {
         return property.toJson().getValue(JsonPointer.of("ditto:category"))
             .getOrNull()?.asString()
+    }
+
+    /**
+     * Extracts the Ditto deprecation notice from a WoT property.
+     */
+    fun extractDeprecationNotice(property: Property): DeprecationNotice? {
+        return extractDeprecationNotice(property.toJson())
+    }
+
+    /**
+     * Extracts the Ditto deprecation notice from a WoT action.
+     */
+    fun extractDeprecationNotice(action: Action): DeprecationNotice? {
+        return extractDeprecationNotice(action.toJson())
+    }
+
+    /**
+     * Builds a human-readable Markdown deprecation notice string from a [DeprecationNotice].
+     * Returns null if the notice is null or not deprecated.
+     */
+    fun buildDeprecationDescription(notice: DeprecationNotice?): String? {
+        if (notice == null || !notice.deprecated) return null
+        val parts = mutableListOf("**Deprecated.**")
+        notice.supersededBy?.let { parts.add("Superseded by `$it`.") }
+        notice.removalVersion?.let { parts.add("Will be removed in version $it.") }
+        return parts.joinToString(" ")
+    }
+
+    /**
+     * Merges an existing description with a deprecation notice suffix.
+     * If the notice is null or not deprecated, the original description is returned unchanged.
+     */
+    fun mergeWithDeprecationNotice(existingDescription: String?, notice: DeprecationNotice?): String? {
+        val deprecationText = buildDeprecationDescription(notice) ?: return existingDescription
+        return if (existingDescription.isNullOrBlank()) deprecationText
+        else "$existingDescription\n\n$deprecationText"
+    }
+
+    /**
+     * Marks an OpenAPI schema as deprecated.
+     * For `$ref` schemas, looks up the referenced component schema and marks it.
+     * For inline schemas, marks the schema object directly.
+     */
+    fun markSchemaDeprecated(schema: Schema<*>?, openAPI: OpenAPI) {
+        if (schema == null) return
+        val ref = schema.`$ref`
+        if (ref != null) {
+            val schemaName = ref.removePrefix("#/components/schemas/")
+            openAPI.components?.schemas?.get(schemaName)?.deprecated(true)
+        } else {
+            schema.deprecated(true)
+        }
+    }
+
+    /**
+     * Extracts the Ditto deprecation notice from a generic interaction JSON object.
+     * The notice is considered valid only if `deprecated` is present and boolean.
+     */
+    fun extractDeprecationNotice(interactionJson: JsonObject): DeprecationNotice? {
+        val deprecationNotice = interactionJson.getValue(JsonPointer.of(DITTO_DEPRECATION_NOTICE))
+            .getOrNull()
+            ?.takeIf(JsonValue::isObject)
+            ?.asObject()
+            ?: return null
+
+        val deprecatedValue = deprecationNotice.getValue(JsonPointer.of(DEPRECATED))
+            .getOrNull()
+            ?: return null
+
+        if (!deprecatedValue.isBoolean) {
+            return null
+        }
+
+        val supersededBy = deprecationNotice.getValue(JsonPointer.of(SUPERSEDED_BY))
+            .getOrNull()
+            ?.takeIf(JsonValue::isString)
+            ?.asString()
+
+        val removalVersion = deprecationNotice.getValue(JsonPointer.of(REMOVAL_VERSION))
+            .getOrNull()
+            ?.takeIf(JsonValue::isString)
+            ?.asString()
+
+        return DeprecationNotice(
+            deprecated = deprecatedValue.asBoolean(),
+            supersededBy = supersededBy,
+            removalVersion = removalVersion
+        )
     }
 }

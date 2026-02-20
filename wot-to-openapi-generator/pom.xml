@@ -37,7 +37,7 @@
         <kotlin.stdlib.version>2.2.10</kotlin.stdlib.version>
         <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
 
-        <ditto.version>3.8.6</ditto.version>
+        <ditto.version>3.8.12</ditto.version>
         <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
         <ktor-client.version>3.2.0</ktor-client.version>
         <caffeine.version>3.2.2</caffeine.version>

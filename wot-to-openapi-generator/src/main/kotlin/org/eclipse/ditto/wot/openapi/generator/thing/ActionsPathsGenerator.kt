@@ -25,6 +25,8 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import org.eclipse.ditto.wot.model.Action
 import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
+import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
+import org.eclipse.ditto.wot.openapi.generator.Utils.mergeWithDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.providers.ApiResponsesProvider
 import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
 import org.eclipse.ditto.wot.openapi.generator.providers.addApiResponse
@@ -44,10 +46,13 @@ object ActionsPathsGenerator {
     }
 
     private fun providePathForAction(action: Action, openAPI: OpenAPI): PathItem {
+        val deprecationNotice = extractDeprecationNotice(action)
+        val deprecated = deprecationNotice?.deprecated == true
 
         val operation = Operation()
+            .also { if (deprecated) it.deprecated(true) }
             .summary("Invokes the '${action.title.getOrNull()?.toString()}' action")
-            .description(action.description.getOrNull()?.toString())
+            .description(mergeWithDeprecationNotice(action.description.getOrNull()?.toString(), deprecationNotice))
             .tags(listOf("Actions"))
             .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
             .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CONDITION) })
