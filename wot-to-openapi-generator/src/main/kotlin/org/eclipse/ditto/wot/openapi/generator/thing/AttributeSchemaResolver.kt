@@ -17,6 +17,7 @@ import io.swagger.v3.oas.models.media.*
 import org.eclipse.ditto.json.JsonObject
 import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
 import java.math.BigDecimal
 import kotlin.jvm.optionals.getOrNull
 
@@ -41,11 +42,19 @@ object AttributeSchemaResolver {
         thingModel.properties.getOrNull()?.entries?.sortedBy { it.key }?.forEach { prop ->
             val propertyName = prop.value.propertyName
             val schema = getSchema(prop.value.asObject()) ?: return@forEach
+            val deprecated = extractDeprecationNotice(prop.value.asObject())?.deprecated == true
 
             schema.title = prop.value.title.getOrNull()?.toString()
             schema.description = prop.value.description.getOrNull()?.toString()
+            if (deprecated) {
+                schema.deprecated(true)
+            }
 
-            schemaProperties[propertyName] = handleSchemaAndGetReference(schema, prop.value.asObject(), propertyName, openAPI, null)
+            val schemaReference = handleSchemaAndGetReference(schema, prop.value.asObject(), propertyName, openAPI, null)
+            if (deprecated) {
+                schemaReference.deprecated(true)
+            }
+            schemaProperties[propertyName] = schemaReference
         }
 
         return mainSchema
@@ -142,11 +151,18 @@ object AttributeSchemaResolver {
             val propertyName = prop.key.toString()
             val propertyObject = prop.value.asObject()
             val schema = getSchema(propertyObject) ?: return@forEach
+            val deprecated = extractDeprecationNotice(propertyObject)?.deprecated == true
             schema.title = propertyObject.getValue("title")?.getOrNull()?.asString()
             schema.description = propertyObject.getValue("description")?.getOrNull()?.asString()
+            if (deprecated) {
+                schema.deprecated(true)
+            }
 
-            schemaProperties[propertyName] =
-                handleSchemaAndGetReference(schema, propertyObject, propertyName, openAPI, parentPath)
+            val schemaReference = handleSchemaAndGetReference(schema, propertyObject, propertyName, openAPI, parentPath)
+            if (deprecated) {
+                schemaReference.deprecated(true)
+            }
+            schemaProperties[propertyName] = schemaReference
         }
 
         return schemaProperties
@@ -181,6 +197,9 @@ object AttributeSchemaResolver {
                 val itemSchema = getSchema(itemsObject ?: JsonObject.empty()) ?: schema as Schema<Any>
                 itemSchema.title = itemsObject?.getValue("title")?.getOrNull()?.asString()
                 itemSchema.description = itemsObject?.getValue("description")?.getOrNull()?.asString()
+                if (itemsObject != null && extractDeprecationNotice(itemsObject)?.deprecated == true) {
+                    itemSchema.deprecated(true)
+                }
 
                 if (itemSchema is ObjectSchema) {
                     val properties = createSubSchemaProperties(

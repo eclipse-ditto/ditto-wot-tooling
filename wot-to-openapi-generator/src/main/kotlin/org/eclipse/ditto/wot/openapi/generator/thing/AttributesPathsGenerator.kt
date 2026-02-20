@@ -25,7 +25,10 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import org.eclipse.ditto.wot.model.Property
 import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
+import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.isPrimitive
+import org.eclipse.ditto.wot.openapi.generator.Utils.markSchemaDeprecated
+import org.eclipse.ditto.wot.openapi.generator.Utils.mergeWithDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.providers.ApiResponsesProvider
 import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
 import org.eclipse.ditto.wot.openapi.generator.providers.addApiResponse
@@ -78,12 +81,18 @@ object AttributesPathsGenerator {
     }
 
     private fun providePathItemGetAttribute(property: Property, openAPI: OpenAPI): PathItem {
+        val deprecationNotice = extractDeprecationNotice(property)
+        val deprecated = deprecationNotice?.deprecated == true
+        val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
+        val responseSchema = provideSchema(property, openAPI)
+        if (deprecated) markSchemaDeprecated(responseSchema, openAPI)
 
         val pathItem = PathItem()
             .get(
                 Operation()
+                    .also { if (deprecated) it.deprecated(true) }
                     .summary("Retrieves the '${property.title.getOrNull()?.toString()}'")
-                    .description(property.description.getOrNull()?.toString())
+                    .description(description)
                     .tags(listOf("Attributes"))
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
@@ -96,7 +105,7 @@ object AttributesPathsGenerator {
                                     .content(
                                         Content().addMediaType(
                                             APPLICATION_JSON,
-                                            MediaType().schema(provideSchema(property, openAPI))
+                                            MediaType().schema(responseSchema)
                                         )
                                     )
                             )
@@ -109,8 +118,9 @@ object AttributesPathsGenerator {
             pathItem
                 .put(
                     Operation()
+                        .also { if (deprecated) it.deprecated(true) }
                         .summary("Replaces the '${property.title.getOrNull()?.toString()}'")
-                        .description(property.description.getOrNull()?.toString())
+                        .description(description)
                         .tags(listOf("Attributes"))
                         .responses(
                             ApiResponses()
@@ -136,8 +146,9 @@ object AttributesPathsGenerator {
                 )
                 .patch(
                     Operation()
+                        .also { if (deprecated) it.deprecated(true) }
                         .summary("Merges the '${property.title.getOrNull()?.toString()}'")
-                        .description(property.description.getOrNull()?.toString())
+                        .description(description)
                         .tags(listOf("Attributes"))
                         .responses(
                             ApiResponses()

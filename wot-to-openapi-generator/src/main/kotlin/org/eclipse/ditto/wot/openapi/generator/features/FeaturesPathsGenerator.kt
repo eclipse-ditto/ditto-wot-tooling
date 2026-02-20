@@ -26,8 +26,11 @@ import org.eclipse.ditto.wot.model.Property
 import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
 import org.eclipse.ditto.wot.openapi.generator.Utils.asPropertyName
+import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractPropertyCategory
 import org.eclipse.ditto.wot.openapi.generator.Utils.isPrimitive
+import org.eclipse.ditto.wot.openapi.generator.Utils.markSchemaDeprecated
+import org.eclipse.ditto.wot.openapi.generator.Utils.mergeWithDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.providers.ApiResponsesProvider
 import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
 import org.eclipse.ditto.wot.openapi.generator.providers.addApiResponse
@@ -127,11 +130,17 @@ object FeaturesPathsGenerator {
     ): PathItem {
 
         val dittoCategory = extractPropertyCategory(property)
+        val deprecationNotice = extractDeprecationNotice(property)
+        val deprecated = deprecationNotice?.deprecated == true
+        val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
+        val responseSchema = provideSchema(property, featureName, openAPI)
+        if (deprecated) markSchemaDeprecated(responseSchema, openAPI)
         val pathItem = PathItem()
             .get(
                 Operation()
+                    .also { if (deprecated) it.deprecated(true) }
                     .summary("Retrieves the '${property.title.getOrNull()?.toString()}' property")
-                    .description(property.description.getOrNull()?.toString())
+                    .description(description)
                     .tags(listOf("Feature: $featureTitle"))
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
@@ -144,7 +153,7 @@ object FeaturesPathsGenerator {
                                     .content(
                                         Content().addMediaType(
                                             APPLICATION_JSON,
-                                            MediaType().schema(provideSchema(property, featureName, openAPI))
+                                            MediaType().schema(responseSchema)
                                         )
                                     )
                             )
@@ -181,8 +190,9 @@ object FeaturesPathsGenerator {
             pathItem
                 .put(
                     Operation()
+                        .also { if (deprecated) it.deprecated(true) }
                         .summary("Replaces the '${property.title.getOrNull()?.toString()}' property")
-                        .description(property.description.getOrNull()?.toString())
+                        .description(description)
                         .tags(listOf("Feature: $featureTitle"))
                         .responses(
                             ApiResponses()
@@ -240,8 +250,9 @@ object FeaturesPathsGenerator {
                 )
                 .patch(
                     Operation()
+                        .also { if (deprecated) it.deprecated(true) }
                         .summary("Merges the '${property.title.getOrNull()?.toString()}' property")
-                        .description(property.description.getOrNull()?.toString())
+                        .description(description)
                         .tags(listOf("Feature: $featureTitle"))
                         .responses(
                             ApiResponses()
