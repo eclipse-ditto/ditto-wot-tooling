@@ -42,7 +42,7 @@
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
 
-        <ditto-wot-model.version>3.8.6</ditto-wot-model.version>
+        <ditto-wot-model.version>3.8.12</ditto-wot-model.version>
         <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
         <ktor-client.version>3.2.0</ktor-client.version>
         <jackson.version>2.20.1</jackson.version>
@@ -283,4 +283,3 @@
         </pluginManagement>
     </build>
 </project>
-

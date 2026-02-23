@@ -98,7 +98,12 @@ object DslGenerator {
      * @param isEntry Whether this is an entry point DSL function
      * @return A [FunSpec] representing the DSL function
      */
-    fun generateFeatureDslFunSpec(feature: String, featurePackage: String, isEntry: Boolean = false): FunSpec {
+    fun generateFeatureDslFunSpec(
+        feature: String,
+        featurePackage: String,
+        isEntry: Boolean = false,
+        deprecationNotice: DeprecationNotice? = null
+    ): FunSpec {
         val className = ClassName(asPackageName(featurePackage), if (isEntry) feature else asClassName(feature))
         val propertyName = asPropertyName(feature)
 
@@ -120,11 +125,12 @@ object DslGenerator {
             LambdaTypeName.get(receiver = className, returnType = UNIT)
         }
 
-        return funSpecBuilder.addParameter("block", lambdaType)
+        funSpecBuilder.addParameter("block", lambdaType)
             .apply {
                 bodyStatements.forEach { addStatement(it) }
             }
-            .build()
+        addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
+        return funSpecBuilder.build()
     }
 
     /**
@@ -143,6 +149,7 @@ object DslGenerator {
     ) = properties.mapNotNull {
         val prop = it.first
         val propSpec = it.second
+        val deprecationNotice = extractDeprecationNotice(prop)
         val property = asPropertyName(propSpec.name)
         val propertyType = propSpec.type.copy(nullable = false)
         if (prop.enum.isNotEmpty()) {
@@ -184,7 +191,8 @@ object DslGenerator {
                     .addStatement("}")
                     .addStatement("$property!!.add($itemName)")
                     .addStatement("return $itemName")
-                    .build()
+                addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
+                funSpecBuilder.build()
             }
         } else if (prop.isBooleanSchema || prop.isStringSchema || prop.isIntegerSchema || prop.isNumberSchema) {
             null
@@ -214,7 +222,8 @@ object DslGenerator {
                 .addStatement("$property.block()")
                 .addStatement("this.$property·=·$property")
                 .addStatement("return $property")
-                .build()
+            addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
+            funSpecBuilder.build()
         }
     }
 
@@ -229,7 +238,12 @@ object DslGenerator {
      * @param fieldType The type of the field
      * @return A [FunSpec] representing the object field DSL function
      */
-    fun generateObjectFieldDslFunSpec(fieldName: String, packageName: String, fieldType: TypeName): FunSpec {
+    fun generateObjectFieldDslFunSpec(
+        fieldName: String,
+        packageName: String,
+        fieldType: TypeName,
+        deprecationNotice: DeprecationNotice? = null
+    ): FunSpec {
         val field = asPropertyName(fieldName)
         val typeClassName = when (fieldType) {
             is ClassName -> fieldType
@@ -251,12 +265,13 @@ object DslGenerator {
             LambdaTypeName.get(receiver = typeClassName, returnType = UNIT)
         }
 
-        return funSpecBuilder.addParameter("block", lambdaType)
+        funSpecBuilder.addParameter("block", lambdaType)
             .addStatement("val·$field·=·${typeClassName.simpleName}()")
             .addStatement("$field.block()")
             .addStatement("this.$field·=·$field")
             .addStatement("return·$field")
-            .build()
+        addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
+        return funSpecBuilder.build()
     }
 
     /**
@@ -393,5 +408,22 @@ object DslGenerator {
         }
 
         return builder.build()
+    }
+
+    private fun addDeprecationAnnotation(
+        builder: FunSpec.Builder,
+        notice: DeprecationNotice?,
+        withBlockParameter: Boolean
+    ) {
+        if (notice == null || !notice.deprecated) return
+        val replacementIdentifier = deprecationReplacementIdentifier(notice)
+        val replaceWithExpression = if (replacementIdentifier != null && withBlockParameter) {
+            "$replacementIdentifier(block)"
+        } else if (replacementIdentifier != null) {
+            "$replacementIdentifier()"
+        } else {
+            null
+        }
+        builder.addAnnotation(buildDeprecatedAnnotationSpec(notice, replaceWithExpression))
     }
 }
