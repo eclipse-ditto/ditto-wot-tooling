@@ -625,7 +625,12 @@ object ClassGenerator {
         superClass?.let {
             typeSpecBuilder.superclass(it)
         }
-        addProperties(null, fields, typeSpecBuilder)
+        addProperties(
+            null,
+            fields,
+            typeSpecBuilder,
+            extractDeprecationNotices(targetObjectSchema.properties)
+        )
 
         val updatedFields = addInlineEnumsToTypeSpec(fields, typeSpecBuilder, packageName)
         val fieldDslFunSpecs = createObjectFieldDslFunSpecs(
@@ -638,7 +643,14 @@ object ClassGenerator {
             typeSpec,
             className,
             packageName,
-            listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true)),
+            listOf(
+                dslGenerator.generateFeatureDslFunSpec(
+                    className,
+                    packageName,
+                    true,
+                    extractDeprecationNotice(targetObjectSchema)
+                )
+            ),
             originalName = propertyName
         )
     }
@@ -1010,6 +1022,9 @@ object ClassGenerator {
             )
 
             functionBuilder.returns(outputType ?: UNIT)
+            extractDeprecationNotice(action)?.let { notice ->
+                functionBuilder.addAnnotation(buildDeprecatedAnnotationSpec(notice))
+            }
 
             interfaceSpec
                 .addFunction(functionBuilder.build())
@@ -1057,12 +1072,18 @@ object ClassGenerator {
                 paramSpec.defaultValue("null")
             }
             constructorSpec.addParameter(paramSpec.build())
-            typeSpecBuilder.addProperty(
-                PropertySpec.builder(name, kotlinType)
-                    .addAnnotation(buildJsonPropertyAnnotationSpec(property))
-                    .initializer(name)
-                    .build()
-            )
+            val propertyBuilder = PropertySpec.builder(name, kotlinType)
+                .addAnnotation(buildJsonPropertyAnnotationSpec(property))
+                .initializer(name)
+            extractDeprecationNotice(schema)?.let { notice ->
+                propertyBuilder.addAnnotation(
+                    buildDeprecatedAnnotationSpec(
+                        notice,
+                        deprecationReplacementIdentifier(notice)
+                    )
+                )
+            }
+            typeSpecBuilder.addProperty(propertyBuilder.build())
         }
 
         typeSpecBuilder.primaryConstructor(constructorSpec.build())
@@ -1186,6 +1207,14 @@ object ClassGenerator {
                         if (!hasJacksonAnnotation(it.second)) {
                             builder.addAnnotation(buildJsonPropertyAnnotationSpec(it.first.propertyName))
                         }
+                        extractDeprecationNotice(it.first)?.let { notice ->
+                            builder.addAnnotation(
+                                buildDeprecatedAnnotationSpec(
+                                    notice,
+                                    deprecationReplacementIdentifier(notice)
+                                )
+                            )
+                        }
                         builder
                             .setter(provideExplicitSettoNullSetter(it.second))
                             .mutable(true)
@@ -1263,6 +1292,16 @@ object ClassGenerator {
                 val builder = it.toBuilder()
                 if (!hasJacksonAnnotation(it)) {
                     builder.addAnnotation(buildJsonPropertyAnnotationSpec(it.name))
+                }
+                propertiesWithoutCategory.firstOrNull { pair -> pair.second.name == it.name }?.first?.let { property ->
+                    extractDeprecationNotice(property)?.let { notice ->
+                        builder.addAnnotation(
+                            buildDeprecatedAnnotationSpec(
+                                notice,
+                                deprecationReplacementIdentifier(notice)
+                            )
+                        )
+                    }
                 }
                 builder
                     .setter(provideExplicitSettoNullSetter(it))
@@ -1343,27 +1382,32 @@ object ClassGenerator {
         val superInterface = ClassName(EXISTING_ATTRIBUTES_PACKAGE, "Attributes")
         val attributesDslFunsSpecs = properties
             .filter { it.first.isObjectSchema }
-            .map { it.second }
-            .filter {
-                when (val type = it.type) {
-                    is ClassName             -> type.packageName.startsWith("java")
-                        .not() && type.packageName.startsWith("kotlin")
-                        .not()
-
-                    is ParameterizedTypeName -> type.rawType.packageName.startsWith("java")
-                        .not() && type.rawType.packageName.startsWith("kotlin").not()
-
+            .mapNotNull { pair ->
+                val property = pair.first
+                val propertySpec = pair.second
+                val type = propertySpec.type
+                val isGeneratedObjectType = when (type) {
+                    is ClassName             -> type.packageName.startsWith("java").not() &&
+                        type.packageName.startsWith("kotlin").not()
+                    is ParameterizedTypeName -> type.rawType.packageName.startsWith("java").not() &&
+                        type.rawType.packageName.startsWith("kotlin").not()
                     else                     -> false
                 }
-            }
-            .map {
-                val propClassName = when (val type = it.type) {
-                    is ClassName             -> type
-                    is ParameterizedTypeName -> type.rawType
-                    else                     -> throw IllegalArgumentException(
-                        "Unsupported type for property: ${it.type}")
+                if (!isGeneratedObjectType) {
+                    null
+                } else {
+                    val propClassName = when (type) {
+                        is ClassName             -> type
+                        is ParameterizedTypeName -> type.rawType
+                        else                     -> throw IllegalArgumentException(
+                            "Unsupported type for property: $type")
+                    }
+                    dslGenerator.generateFeatureDslFunSpec(
+                        propClassName.simpleName,
+                        propClassName.packageName,
+                        deprecationNotice = extractDeprecationNotice(property)
+                    )
                 }
-                dslGenerator.generateFeatureDslFunSpec(propClassName.simpleName, propClassName.packageName)
             }
 
         val typeSpecBuilder = TypeSpec.classBuilder(className)
@@ -1393,6 +1437,14 @@ object ClassGenerator {
                     val builder = it.second.toBuilder()
                     if (!hasJacksonAnnotation(it.second)) {
                         builder.addAnnotation(buildJsonPropertyAnnotationSpec(it.first.propertyName))
+                    }
+                    extractDeprecationNotice(it.first)?.let { notice ->
+                        builder.addAnnotation(
+                            buildDeprecatedAnnotationSpec(
+                                notice,
+                                deprecationReplacementIdentifier(notice)
+                            )
+                        )
                     }
                     builder
                         .setter(provideExplicitSettoNullSetter(it.second))
@@ -1506,7 +1558,12 @@ object ClassGenerator {
             typeSpecBuilder.superclass(it)
         }
 
-        addProperties(superClass, fields, typeSpecBuilder)
+        addProperties(
+            superClass,
+            fields,
+            typeSpecBuilder,
+            extractDeprecationNotices(objectSchema.properties)
+        )
 
         if (!isMapLike) {
             typeSpecBuilder.primaryConstructor(buildPrimaryConstructor(fields.map { it.second }))
@@ -1520,7 +1577,14 @@ object ClassGenerator {
             typeSpecBuilder.build(),
             className,
             propertyPackage,
-            listOf(dslGenerator.generateFeatureDslFunSpec(className, propertyPackage, true)),
+            listOf(
+                dslGenerator.generateFeatureDslFunSpec(
+                    className,
+                    propertyPackage,
+                    true,
+                    extractDeprecationNotice(objectSchema)
+                )
+            ),
             originalName = propertyName
         )
     }
@@ -1542,10 +1606,22 @@ object ClassGenerator {
     private fun addProperties(
         superClass: ParameterizedTypeName?,
         properties: List<Pair<String, PropertySpec>>,
-        typeSpecBuilder: TypeSpec.Builder
+        typeSpecBuilder: TypeSpec.Builder,
+        deprecationNotices: Map<String, DeprecationNotice> = emptyMap()
     ) {
         if (superClass?.rawType == ClassName(EXISTING_FEATURES_PACKAGE, "MapObjectProperty") && properties.isNotEmpty()) {
-            typeSpecBuilder.addProperties(properties.map { it.second })
+            typeSpecBuilder.addProperties(properties.map {
+                val builder = it.second.toBuilder()
+                deprecationNotices[it.first]?.let { notice ->
+                    builder.addAnnotation(
+                        buildDeprecatedAnnotationSpec(
+                            notice,
+                            deprecationReplacementIdentifier(notice)
+                        )
+                    )
+                }
+                builder.build()
+            })
         } else if (properties.isNotEmpty()) {
             typeSpecBuilder
                 .addModifiers(KModifier.DATA)
@@ -1569,6 +1645,14 @@ object ClassGenerator {
                     if (!hasJacksonAnnotation(it.second)) {
                         builder.addAnnotation(buildJsonPropertyAnnotationSpec(it.first))
                     }
+                    deprecationNotices[it.first]?.let { notice ->
+                        builder.addAnnotation(
+                            buildDeprecatedAnnotationSpec(
+                                notice,
+                                deprecationReplacementIdentifier(notice)
+                            )
+                        )
+                    }
                     builder
                         .setter(provideExplicitSettoNullSetter(it.second))
                         .mutable(true)
@@ -1576,6 +1660,15 @@ object ClassGenerator {
                         .build()
                 })
         }
+    }
+
+    private fun extractDeprecationNotices(
+        properties: Map<String, SingleDataSchema>?
+    ): Map<String, DeprecationNotice> {
+        if (properties == null) return emptyMap()
+        return properties.mapNotNull { (name, schema) ->
+            extractDeprecationNotice(schema)?.let { name to it }
+        }.toMap()
     }
 
     private fun createObjectFieldDslFunSpecs(
@@ -1592,7 +1685,22 @@ object ClassGenerator {
                         asPropertyName(key) == field.name && value.enum.isEmpty() && value.type.getOrNull() == DataSchemaType.OBJECT
                     }
             }
-                .map { dslGenerator.generateObjectFieldDslFunSpec(it.name, packageName, it.type.copy(nullable = false)) }.toMutableList()
+                .map { field ->
+                    val deprecationNotice = objectSchema.properties.entries
+                        .firstOrNull { (key, value) ->
+                            asPropertyName(key) == field.name &&
+                                value.enum.isEmpty() &&
+                                value.type.getOrNull() == DataSchemaType.OBJECT
+                        }
+                        ?.value
+                        ?.let { extractDeprecationNotice(it) }
+                    dslGenerator.generateObjectFieldDslFunSpec(
+                        field.name,
+                        packageName,
+                        field.type.copy(nullable = false),
+                        deprecationNotice
+                    )
+                }.toMutableList()
 
         dslGenerator.generateAdditionalOrPatternPropertyDslFunSpec(
             propertyName,
