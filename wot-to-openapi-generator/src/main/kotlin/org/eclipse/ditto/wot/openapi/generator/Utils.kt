@@ -453,7 +453,7 @@ object Utils {
 
     /**
      * Extracts the Ditto deprecation notice from a generic interaction JSON object.
-     * The notice is considered valid only if `deprecated` is present and boolean.
+     * The notice is considered valid only if `deprecated` is present, boolean and true.
      */
     fun extractDeprecationNotice(interactionJson: JsonObject): DeprecationNotice? {
         val deprecationNotice = interactionJson.getValue(JsonPointer.of(DITTO_DEPRECATION_NOTICE))
@@ -466,7 +466,7 @@ object Utils {
             .getOrNull()
             ?: return null
 
-        if (!deprecatedValue.isBoolean) {
+        if (!deprecatedValue.isBoolean || !deprecatedValue.asBoolean()) {
             return null
         }
 
@@ -481,7 +481,7 @@ object Utils {
             ?.asString()
 
         return DeprecationNotice(
-            deprecated = deprecatedValue.asBoolean(),
+            deprecated = true,
             supersededBy = supersededBy,
             removalVersion = removalVersion
         )
