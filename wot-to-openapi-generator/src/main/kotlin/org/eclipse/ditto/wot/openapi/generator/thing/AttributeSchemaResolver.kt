@@ -197,9 +197,6 @@ object AttributeSchemaResolver {
                 val itemSchema = getSchema(itemsObject ?: JsonObject.empty()) ?: schema as Schema<Any>
                 itemSchema.title = itemsObject?.getValue("title")?.getOrNull()?.asString()
                 itemSchema.description = itemsObject?.getValue("description")?.getOrNull()?.asString()
-                if (itemsObject != null && extractDeprecationNotice(itemsObject)?.deprecated == true) {
-                    itemSchema.deprecated(true)
-                }
 
                 if (itemSchema is ObjectSchema) {
                     val properties = createSubSchemaProperties(

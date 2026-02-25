@@ -155,7 +155,7 @@ fun buildDeprecatedAnnotationSpec(
     val deprecatedAnnotation = AnnotationSpec.builder(Deprecated::class)
         .addMember("message = %S", message)
     if (effectiveReplaceWith != null) {
-        deprecatedAnnotation.addMember("replaceWith = %T(%S)", ClassName("kotlin", "ReplaceWith"), effectiveReplaceWith)
+        deprecatedAnnotation.addMember("replaceWith = %T(%S)", ReplaceWith::class, effectiveReplaceWith)
     }
     deprecatedAnnotation.addMember("level = %T.WARNING", DeprecationLevel::class)
     return deprecatedAnnotation.build()

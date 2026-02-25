@@ -54,6 +54,17 @@ class DeprecationNoticeAndPathsTest {
             }
             """.trimIndent()
         )
+        val notDeprecatedJson = JsonObject.of(
+            """
+            {
+              "ditto:deprecationNotice": {
+                "deprecated": false,
+                "supersededBy": "#/properties/targetTemperature",
+                "removalVersion": "2.0.0"
+              }
+            }
+            """.trimIndent()
+        )
 
         val validNotice = Utils.extractDeprecationNotice(validJson)
         assertNotNull(validNotice)
@@ -63,6 +74,9 @@ class DeprecationNoticeAndPathsTest {
 
         val invalidNotice = Utils.extractDeprecationNotice(invalidJson)
         assertNull(invalidNotice)
+
+        val notDeprecatedNotice = Utils.extractDeprecationNotice(notDeprecatedJson)
+        assertNull(notDeprecatedNotice)
     }
 
     @Test
