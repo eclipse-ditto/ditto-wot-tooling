@@ -62,6 +62,7 @@ object ClassGenerator {
     private val dslGenerator = DslGenerator
     private val enumGenerator = EnumGenerator
     private val schemaTypeResolver = SchemaTypeResolver
+    private val defaultValueExtractor = DefaultValueExtractor
 
     private var outputDir: String = ""
     private var enumGenerationStrategy: IEnumGenerationStrategy? = null
@@ -175,6 +176,7 @@ object ClassGenerator {
      * @param funSpecs Additional functions to add to the file
      * @param imports Additional imports to add to the file
      * @param originalName The original name for path generation
+     * @param defaultConstants Optional list of DEFAULT_* property specs for companion object
      */
     fun generateNewClass(
         typeSpec: TypeSpec,
@@ -182,7 +184,8 @@ object ClassGenerator {
         packageName: String,
         funSpecs: List<FunSpec> = emptyList(),
         imports: List<String> = emptyList(),
-        originalName: String? = null
+        originalName: String? = null,
+        defaultConstants: List<PropertySpec> = emptyList()
     ) {
         logger.debug("Generating class $className in package $packageName ...")
         val isPropertiesClass = typeSpec.superinterfaces.keys.any {
@@ -193,7 +196,7 @@ object ClassGenerator {
 
         val newTypeSpecBuilder = typeSpec.toBuilder()
 
-        mergeOrAddCompanionObject(newTypeSpecBuilder, pathFunSpec)
+        mergeOrAddCompanionObject(newTypeSpecBuilder, pathFunSpec, defaultConstants)
 
         val fileSpecBuilder = createFileSpecBuilder(newTypeSpecBuilder, className, packageName, funSpecs, imports)
 
@@ -230,6 +233,28 @@ object ClassGenerator {
      * @param pathFunSpec The path function specification to add
      */
     fun mergeOrAddCompanionObject(typeSpecBuilder: TypeSpec.Builder, pathFunSpec: FunSpec) {
+        mergeOrAddCompanionObject(typeSpecBuilder, pathFunSpec, emptyList())
+    }
+
+    /**
+     * Merges or adds a companion object with path functionality and default constants.
+     *
+     * If a companion object already exists, it adds the path function and default constants to it.
+     * Otherwise, it creates a new companion object with both.
+     *
+     * This overload supports adding DEFAULT_* constants extracted from WoT Thing Model
+     * schema default values. The constants are placed on the companion object of the
+     * class that directly owns the property.
+     *
+     * @param typeSpecBuilder The type spec builder to modify
+     * @param pathFunSpec The path function specification to add
+     * @param defaultConstants List of PropertySpec for DEFAULT_* constants to add
+     */
+    fun mergeOrAddCompanionObject(
+        typeSpecBuilder: TypeSpec.Builder,
+        pathFunSpec: FunSpec,
+        defaultConstants: List<PropertySpec>
+    ) {
         val existingCompanion = typeSpecBuilder.build().typeSpecs.find { it.isCompanion }
 
         if (existingCompanion != null) {
@@ -239,10 +264,6 @@ object ClassGenerator {
 
             val hasStartPathMethod = existingCompanion.funSpecs.any { it.name == "startPath" }
 
-            if (hasHasPathInterface && hasStartPathMethod) {
-                return
-            }
-
             val modifiedCompanion = existingCompanion.toBuilder()
             if (!hasHasPathInterface) {
                 modifiedCompanion.addSuperinterface(ClassName(Const.COMMON_PACKAGE_PATH, "HasPath"))
@@ -251,14 +272,40 @@ object ClassGenerator {
                 modifiedCompanion.addFunction(pathFunSpec)
             }
 
+            addDefaultConstantsToCompanion(modifiedCompanion, defaultConstants, existingCompanion.propertySpecs)
+
             typeSpecBuilder.typeSpecs.remove(existingCompanion)
             typeSpecBuilder.addType(modifiedCompanion.build())
         } else {
-            val companionObjectSpec = TypeSpec.companionObjectBuilder()
+            val companionBuilder = TypeSpec.companionObjectBuilder()
                 .addSuperinterface(ClassName(Const.COMMON_PACKAGE_PATH, "HasPath"))
                 .addFunction(pathFunSpec)
-                .build()
-            typeSpecBuilder.addType(companionObjectSpec)
+
+            addDefaultConstantsToCompanion(companionBuilder, defaultConstants)
+
+            typeSpecBuilder.addType(companionBuilder.build())
+        }
+    }
+
+    /**
+     * Adds default constants to an existing companion object builder.
+     *
+     * This method is used when building category inner classes or nested object classes
+     * that need their own DEFAULT_* constants.
+     *
+     * @param companionBuilder The companion object builder to add constants to
+     * @param defaultConstants List of PropertySpec for DEFAULT_* constants
+     */
+    fun addDefaultConstantsToCompanion(
+        companionBuilder: TypeSpec.Builder,
+        defaultConstants: List<PropertySpec>,
+        existingProperties: List<PropertySpec> = emptyList()
+    ) {
+        defaultConstants.forEach { constant ->
+            val alreadyExists = existingProperties.any { it.name == constant.name }
+            if (!alreadyExists) {
+                companionBuilder.addProperty(constant)
+            }
         }
     }
 
@@ -600,8 +647,8 @@ object ClassGenerator {
         if (propertiesJson == null || propertiesJson.isEmpty()) {
             logger.warn("No properties found for class $className, schema: ${targetObjectSchema.toJson()}")
         }
+        val schemaMap = mutableMapOf<String, SingleDataSchema>()
         val fields = if (propertiesJson != null) {
-            val schemaMap = mutableMapOf<String, SingleDataSchema>()
             for (entry in propertiesJson) {
                 val key = entry.key.toString()
                 val value = entry.value
@@ -617,6 +664,9 @@ object ClassGenerator {
         } else {
             emptyList()
         }
+
+        val defaultConstants = defaultValueExtractor.extractDefaultConstantsFromFields(schemaMap, packageName)
+            .map { it.propertySpec }
 
         val typeSpecBuilder = TypeSpec.classBuilder(className)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
@@ -651,7 +701,8 @@ object ClassGenerator {
                     extractDeprecationNotice(targetObjectSchema)
                 )
             ),
-            originalName = propertyName
+            originalName = propertyName,
+            defaultConstants = defaultConstants
         )
     }
 
@@ -1460,6 +1511,10 @@ object ClassGenerator {
             packageName
         )
 
+        val propertiesMap = properties.associate { it.first.propertyName to it.first }
+        val defaultConstants = defaultValueExtractor.extractDefaultConstants(propertiesMap, packageName)
+            .map { it.propertySpec }
+
         val typeSpec = typeSpecBuilder
             .addAnnotation(buildJsonIgnoreAnnotationSpec())
             .addFunctions(attributesDslFunsSpecs)
@@ -1468,7 +1523,10 @@ object ClassGenerator {
             typeSpec,
             className,
             packageName,
-            listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true))
+            listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true)),
+            emptyList(),
+            null,
+            defaultConstants
         )
     }
 
