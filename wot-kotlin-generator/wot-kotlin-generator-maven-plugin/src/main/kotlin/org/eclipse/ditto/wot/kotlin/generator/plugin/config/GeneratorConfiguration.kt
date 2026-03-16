@@ -47,7 +47,21 @@ data class GeneratorConfiguration(
     val generateEnums: Boolean = true,
 
     /** Whether to generate interfaces (maintains backward compatibility) */
-    val generateInterfaces: Boolean = true
+    val generateInterfaces: Boolean = true,
+
+    /**
+     * When true, generates a self-contained submodel package: feature classes, a single-feature
+     * Features container, and a device-agnostic Thing — without attributes or multi-device wrappers.
+     * Use for shared submodels referenced by multiple device types.
+     */
+    val submodelOnly: Boolean = false,
+
+    /**
+     * The feature name (JSON key) to use when generating in submodel-only mode.
+     * If not set, the name is derived from the model title in camelCase.
+     * Only used when [submodelOnly] is true.
+     */
+    val featureName: String? = null
 ) {
     /**
      * Creates a copy with updated values, useful for building configurations incrementally.
@@ -61,7 +75,9 @@ data class GeneratorConfiguration(
         generateDsl: Boolean? = null,
         generateSuspendDsl: Boolean? = null,
         generateEnums: Boolean? = null,
-        generateInterfaces: Boolean? = null
+        generateInterfaces: Boolean? = null,
+        submodelOnly: Boolean? = null,
+        featureName: String? = null
     ): GeneratorConfiguration {
         return copy(
             thingModelUrl = thingModelUrl ?: this.thingModelUrl,
@@ -72,7 +88,9 @@ data class GeneratorConfiguration(
             generateDsl = generateDsl ?: this.generateDsl,
             generateSuspendDsl = generateSuspendDsl ?: this.generateSuspendDsl,
             generateEnums = generateEnums ?: this.generateEnums,
-            generateInterfaces = generateInterfaces ?: this.generateInterfaces
+            generateInterfaces = generateInterfaces ?: this.generateInterfaces,
+            submodelOnly = submodelOnly ?: this.submodelOnly,
+            featureName = featureName ?: this.featureName
         )
     }
 

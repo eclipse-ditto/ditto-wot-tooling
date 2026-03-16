@@ -82,7 +82,56 @@ The WoT Kotlin Generator consists of two Maven modules:
 | `enumGenerationStrategy` | String | No | `INLINE` | Strategy for generating enums (`INLINE` or `SEPARATE_CLASS`)             |
 | `classNamingStrategy` | String | No | `COMPOUND_ALL` | Strategy for naming classes (`COMPOUND_ALL` or `ORIGINAL_THEN_COMPOUND`) |
 | `generateSuspendDsl` | boolean | No | `false` | Whether DSL functions should be suspend functions                        |
+| `submodelOnly` | boolean | No | `false` | Generate a self-contained submodel package instead of a full device model |
+| `featureName` | String | No | _(camelCase of model title)_ | JSON key for the feature when using `submodelOnly`                       |
 
+
+## Submodel-Only Mode
+
+When a WoT Thing Model represents a shared capability referenced by multiple device types (e.g. a thermostat submodel used by both a Temperature Thermostat and a Room Controller), use `submodelOnly=true` to generate a self-contained package without device-specific wrappers.
+
+### What Gets Generated
+
+Instead of a full device model (attributes, multi-feature wrapper, top-level Thing class), the generator produces:
+
+```
+generated-sources/
+└── com/example/iot/thermostat/
+    ├── ThermostatThing.kt              # Device-agnostic Thing<Nothing, ThermostatFeatures>
+    └── features/
+        ├── ThermostatFeatures.kt       # Single-feature Features container
+        └── thermostat/
+            ├── Thermostat.kt           # Feature class with FEATURE_NAME and startPath()
+            ├── ThermostatProperties.kt # Feature properties
+            └── properties/
+                └── *.kt               # Individual property classes
+```
+
+### Configuration
+
+```xml
+<execution>
+    <id>code-generator-thermostat-submodel</id>
+    <phase>generate-sources</phase>
+    <goals><goal>codegen</goal></goals>
+    <configuration>
+        <thingModelUrl>https://example.org/thermostat-2.0.0.tm.jsonld</thingModelUrl>
+        <packageName>com.example.iot.thermostat</packageName>
+        <classNamingStrategy>ORIGINAL_THEN_COMPOUND</classNamingStrategy>
+        <submodelOnly>true</submodelOnly>
+        <featureName>thermostat</featureName>
+    </configuration>
+</execution>
+```
+
+### The `featureName` Parameter
+
+The `featureName` sets the JSON key used for `@JsonSetter`, `@JsonProperty`, and `FEATURE_NAME` in the generated feature class — this must match the exact key used in the Ditto digital twin JSON. It mirrors the link instance name used in parent device models.
+
+- **If set**: used verbatim (e.g. `"temperature-thermostat"` → `@JsonSetter("temperature-thermostat")`)
+- **If not set**: derived from the model title in camelCase (e.g. title `"Thermostat"` → `"thermostat"`)
+
+Always set `featureName` explicitly when the JSON key contains hyphens or differs from the camelCase title.
 
 ## Configuration Strategies
 

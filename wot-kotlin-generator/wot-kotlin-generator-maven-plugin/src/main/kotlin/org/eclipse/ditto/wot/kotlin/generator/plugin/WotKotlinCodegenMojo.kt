@@ -91,6 +91,23 @@ class WotKotlinCodegenMojo: AbstractMojo() {
     var generateInterfaces: Boolean = true
 
     /**
+     * When true, generates a self-contained submodel package: feature classes, a single-feature
+     * Features container, and a device-agnostic Thing — without attributes or multi-device wrappers.
+     * Use for shared submodels referenced by multiple device types.
+     */
+    @Parameter(property = "submodelOnly", defaultValue = "false")
+    var submodelOnly: Boolean = false
+
+    /**
+     * The feature name (JSON key) to use when generating in submodel-only mode.
+     * If not set, the name is derived from the model title in camelCase.
+     * Only used when submodelOnly is true.
+     */
+    @Parameter(property = "featureName")
+    var featureName: String? = null
+
+
+    /**
      * Main execution method called by Maven during the build lifecycle.
      *
      * This method:
@@ -123,6 +140,8 @@ class WotKotlinCodegenMojo: AbstractMojo() {
             log.info("---> Generate Suspend DSL: ${config.generateSuspendDsl}")
             log.info("---> Generate Enums: ${config.generateEnums}")
             log.info("---> Generate Interfaces: ${config.generateInterfaces}")
+            log.info("---> Submodel only: ${config.submodelOnly}")
+            log.info("---> Feature name: ${config.featureName ?: "<derived from model title>"}")
 
             runBlocking {
                 GeneratorStarter.run(config)
@@ -195,7 +214,9 @@ class WotKotlinCodegenMojo: AbstractMojo() {
             generateDsl = generateDsl,
             generateSuspendDsl = generateSuspendDsl,
             generateEnums = generateEnums,
-            generateInterfaces = generateInterfaces
+            generateInterfaces = generateInterfaces,
+            submodelOnly = submodelOnly,
+            featureName = featureName
         )
     }
 }

@@ -59,11 +59,15 @@ class EnumGenerationConfigurationTest {
             .outputPackage("org.example.generated")
             .outputDirectory("target/test-output")
             .separateEnumClasses()
+            .submodelOnly(true)
+            .featureName("smartheating-thermostat")
             .build()
 
         assertEquals(EnumGenerationStrategy.SEPARATE_CLASS, config.enumGenerationStrategy)
         assertEquals("https://example.org/thing-model.jsonld", config.thingModelUrl)
         assertEquals("org.example.generated", config.outputPackage)
+        assertTrue(config.submodelOnly)
+        assertEquals("smartheating-thermostat", config.featureName)
     }
 
     @Test
@@ -124,11 +128,15 @@ class EnumGenerationConfigurationTest {
 
         val updatedConfig = originalConfig.copyWith(
             enumGenerationStrategy = EnumGenerationStrategy.SEPARATE_CLASS,
-            generateInterfaces = false
+            generateInterfaces = false,
+            submodelOnly = true,
+            featureName = "thermostat"
         )
 
         assertEquals(EnumGenerationStrategy.SEPARATE_CLASS, updatedConfig.enumGenerationStrategy)
         assertFalse(updatedConfig.generateInterfaces)
+        assertTrue(updatedConfig.submodelOnly)
+        assertEquals("thermostat", updatedConfig.featureName)
         assertEquals(originalConfig.thingModelUrl, updatedConfig.thingModelUrl)
         assertEquals(originalConfig.outputPackage, updatedConfig.outputPackage)
     }

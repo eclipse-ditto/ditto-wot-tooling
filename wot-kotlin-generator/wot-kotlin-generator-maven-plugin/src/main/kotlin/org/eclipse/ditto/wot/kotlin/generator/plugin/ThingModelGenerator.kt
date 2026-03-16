@@ -102,9 +102,6 @@ object ThingModelGenerator {
      * @param config The configuration controlling the generation process
      */
     suspend fun generate(thingModel: ThingModel, config: GeneratorConfiguration) {
-        val modelName = asClassNameWithStrategy(thingModel.title.get().toString(), null, config.classNamingStrategy, emptySet())
-        val links = thingModel.links.getOrNull() ?: emptyList<BaseLink<*>>()
-
         logger.info("Using enum generation strategy: ${config.enumGenerationStrategy}")
         logger.info("Generate DSL: ${config.generateDsl}")
         logger.info("Generate Enums: ${config.generateEnums}")
@@ -116,6 +113,15 @@ object ThingModelGenerator {
         // Set enum generation strategy in WrapperTypeChecker
         val enumStrategy = EnumGenerationStrategyFactory.createStrategy(config)
         org.eclipse.ditto.wot.kotlin.generator.plugin.property.WrapperTypeChecker.setEnumGenerationStrategy(enumStrategy)
+
+        if (config.submodelOnly) {
+            logger.info("Submodel-only mode: generating self-contained submodel package for '${thingModel.title.get()}'")
+            classGenerator.generateSubmodelFeature(config.outputPackage, thingModel)
+            return
+        }
+
+        val modelName = asClassNameWithStrategy(thingModel.title.get().toString(), null, config.classNamingStrategy, emptySet())
+        val links = thingModel.links.getOrNull() ?: emptyList<BaseLink<*>>()
 
         classGenerator.generateAttributesClass(config.outputPackage, thingModel)
         classGenerator.generateThingActions(config.outputPackage, thingModel)
