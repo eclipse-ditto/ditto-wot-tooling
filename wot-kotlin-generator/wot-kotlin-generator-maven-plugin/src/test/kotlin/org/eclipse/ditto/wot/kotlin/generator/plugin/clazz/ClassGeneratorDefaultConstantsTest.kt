@@ -160,7 +160,7 @@ class ClassGeneratorDefaultConstantsTest {
                 .build()
         )
 
-        ClassGenerator.addDefaultConstantsToCompanion(companionBuilder, defaultConstants)
+        ClassGenerator.addDefaultsToCompanion(companionBuilder, defaultConstants)
 
         val companion = companionBuilder.build()
         assertEquals(1, companion.propertySpecs.size)
