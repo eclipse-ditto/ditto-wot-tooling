@@ -264,6 +264,10 @@ object ClassGenerator {
 
             val hasStartPathMethod = existingCompanion.funSpecs.any { it.name == "startPath" }
 
+            if (hasHasPathInterface && hasStartPathMethod && defaultConstants.isEmpty()) {
+                return
+            }
+
             val modifiedCompanion = existingCompanion.toBuilder()
             if (!hasHasPathInterface) {
                 modifiedCompanion.addSuperinterface(ClassName(Const.COMMON_PACKAGE_PATH, "HasPath"))
@@ -272,7 +276,7 @@ object ClassGenerator {
                 modifiedCompanion.addFunction(pathFunSpec)
             }
 
-            addDefaultConstantsToCompanion(modifiedCompanion, defaultConstants, existingCompanion.propertySpecs)
+            addDefaultsToCompanion(modifiedCompanion, defaultConstants, existingCompanion.propertySpecs)
 
             typeSpecBuilder.typeSpecs.remove(existingCompanion)
             typeSpecBuilder.addType(modifiedCompanion.build())
@@ -281,7 +285,7 @@ object ClassGenerator {
                 .addSuperinterface(ClassName(Const.COMMON_PACKAGE_PATH, "HasPath"))
                 .addFunction(pathFunSpec)
 
-            addDefaultConstantsToCompanion(companionBuilder, defaultConstants)
+            addDefaultsToCompanion(companionBuilder, defaultConstants)
 
             typeSpecBuilder.addType(companionBuilder.build())
         }
@@ -296,7 +300,7 @@ object ClassGenerator {
      * @param companionBuilder The companion object builder to add constants to
      * @param defaultConstants List of PropertySpec for DEFAULT_* constants
      */
-    fun addDefaultConstantsToCompanion(
+    fun addDefaultsToCompanion(
         companionBuilder: TypeSpec.Builder,
         defaultConstants: List<PropertySpec>,
         existingProperties: List<PropertySpec> = emptyList()
@@ -666,7 +670,6 @@ object ClassGenerator {
         }
 
         val defaultConstants = defaultValueExtractor.extractDefaultConstantsFromFields(schemaMap, packageName)
-            .map { it.propertySpec }
 
         val typeSpecBuilder = TypeSpec.classBuilder(className)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
@@ -1513,7 +1516,6 @@ object ClassGenerator {
 
         val propertiesMap = properties.associate { it.first.propertyName to it.first }
         val defaultConstants = defaultValueExtractor.extractDefaultConstants(propertiesMap, packageName)
-            .map { it.propertySpec }
 
         val typeSpec = typeSpecBuilder
             .addAnnotation(buildJsonIgnoreAnnotationSpec())

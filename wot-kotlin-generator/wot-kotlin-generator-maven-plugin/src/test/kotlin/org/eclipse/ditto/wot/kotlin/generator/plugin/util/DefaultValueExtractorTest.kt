@@ -315,8 +315,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("isEnabled", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_IS_ENABLED", result!!.propertySpec.name)
-        assertTrue(result.propertySpec.modifiers.contains(KModifier.CONST))
+        assertEquals("DEFAULT_IS_ENABLED", result!!.name)
+        assertTrue(result.modifiers.contains(KModifier.CONST))
     }
 
     @Test
@@ -331,8 +331,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("maxRetries", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_MAX_RETRIES", result!!.propertySpec.name)
-        assertTrue(result.propertySpec.modifiers.contains(KModifier.CONST))
+        assertEquals("DEFAULT_MAX_RETRIES", result!!.name)
+        assertTrue(result.modifiers.contains(KModifier.CONST))
     }
 
     @Test
@@ -347,8 +347,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("temperature", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_TEMPERATURE", result!!.propertySpec.name)
-        assertTrue(result.propertySpec.modifiers.contains(KModifier.CONST))
+        assertEquals("DEFAULT_TEMPERATURE", result!!.name)
+        assertTrue(result.modifiers.contains(KModifier.CONST))
     }
 
     @Test
@@ -363,8 +363,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("status", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_STATUS", result!!.propertySpec.name)
-        assertTrue(result.propertySpec.modifiers.contains(KModifier.CONST))
+        assertEquals("DEFAULT_STATUS", result!!.name)
+        assertTrue(result.modifiers.contains(KModifier.CONST))
     }
 
     @Test
@@ -380,8 +380,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("createdAt", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_CREATED_AT", result!!.propertySpec.name)
-        assertFalse(result.propertySpec.modifiers.contains(KModifier.CONST)) // Instant is reference type
+        assertEquals("DEFAULT_CREATED_AT", result!!.name)
+        assertFalse(result.modifiers.contains(KModifier.CONST)) // Instant is reference type
     }
 
     @Test
@@ -397,8 +397,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("state", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_STATE", result!!.propertySpec.name)
-        assertFalse(result.propertySpec.modifiers.contains(KModifier.CONST)) // Enum is reference type
+        assertEquals("DEFAULT_STATE", result!!.name)
+        assertFalse(result.modifiers.contains(KModifier.CONST)) // Enum is reference type
     }
 
     @Test
@@ -414,8 +414,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("tags", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_TAGS", result!!.propertySpec.name)
-        assertFalse(result.propertySpec.modifiers.contains(KModifier.CONST)) // List is reference type
+        assertEquals("DEFAULT_TAGS", result!!.name)
+        assertFalse(result.modifiers.contains(KModifier.CONST)) // List is reference type
     }
 
     @Test
@@ -444,7 +444,7 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("tags", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        val spec = result!!.propertySpec
+        val spec = result!!
         assertFalse(spec.modifiers.contains(KModifier.CONST))
         assertEquals("DEFAULT_TAGS", spec.name)
         assertTrue(spec.initializer.toString().contains("listOf"))
@@ -497,8 +497,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("lowBatteryBehavior", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_LOW_BATTERY_BEHAVIOR", result!!.propertySpec.name)
-        assertFalse(result.propertySpec.modifiers.contains(KModifier.CONST))
+        assertEquals("DEFAULT_LOW_BATTERY_BEHAVIOR", result!!.name)
+        assertFalse(result.modifiers.contains(KModifier.CONST))
     }
 
     @Test
@@ -513,8 +513,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("isEnabled", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_IS_ENABLED", result!!.propertySpec.name)
-        assertTrue(result.propertySpec.modifiers.contains(KModifier.CONST))
+        assertEquals("DEFAULT_IS_ENABLED", result!!.name)
+        assertTrue(result.modifiers.contains(KModifier.CONST))
     }
 
     @Test
@@ -529,7 +529,7 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("name", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        assertEquals("DEFAULT_NAME", result!!.propertySpec.name)
+        assertEquals("DEFAULT_NAME", result!!.name)
     }
 
     @Test
@@ -557,8 +557,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultConstantsFromFields(fields, TEST_PACKAGE)
 
         assertEquals(2, result.size)
-        assertTrue(result.any { it.propertySpec.name == "DEFAULT_IS_ENABLED" })
-        assertTrue(result.any { it.propertySpec.name == "DEFAULT_MAX_RETRIES" })
+        assertTrue(result.any { it.name == "DEFAULT_IS_ENABLED" })
+        assertTrue(result.any { it.name == "DEFAULT_MAX_RETRIES" })
     }
 
     @Test
@@ -610,8 +610,8 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultConstantsFromFields(fields, TEST_PACKAGE)
 
         assertEquals(2, result.size)
-        assertTrue(result.any { it.propertySpec.name == "DEFAULT_TEMPERATURE" })
-        assertTrue(result.any { it.propertySpec.name == "DEFAULT_HUMIDITY" })
+        assertTrue(result.any { it.name == "DEFAULT_TEMPERATURE" })
+        assertTrue(result.any { it.name == "DEFAULT_HUMIDITY" })
     }
 
     @Test
@@ -723,7 +723,7 @@ class DefaultValueExtractorTest {
         val result = DefaultValueExtractor.extractDefaultFromSchema("enabledSeverities", schema, TEST_PACKAGE)
 
         assertNotNull(result)
-        val spec = result!!.propertySpec
+        val spec = result!!
         assertEquals("DEFAULT_ENABLED_SEVERITIES", spec.name)
         assertFalse(spec.modifiers.contains(KModifier.CONST))
         assertTrue(spec.initializer.toString().contains("listOf"))

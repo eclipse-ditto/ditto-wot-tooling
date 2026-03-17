@@ -51,15 +51,6 @@ object DefaultValueExtractor {
     private val logger = LoggerFactory.getLogger(DefaultValueExtractor::class.java)
 
     /**
-     * Represents an extracted default value with its corresponding property specification.
-     *
-     * @property propertySpec The KotlinPoet PropertySpec for the default constant
-     */
-    data class ExtractedDefault(
-        val propertySpec: PropertySpec
-    )
-
-    /**
      * Extracts default value constants from a collection of properties.
      *
      * Processes each property in the map and extracts any defined default values,
@@ -67,12 +58,12 @@ object DefaultValueExtractor {
      *
      * @param properties Map of property names to their Property definitions
      * @param packageName The package name for type resolution
-     * @return List of extracted default constants, empty if no defaults found
+     * @return List of PropertySpec for DEFAULT_* constants, empty if no defaults found
      */
     fun extractDefaultConstants(
         properties: Map<String, Property>,
         packageName: String
-    ): List<ExtractedDefault> {
+    ): List<PropertySpec> {
         return properties.mapNotNull { (name, property) ->
             extractDefaultFromProperty(name, property, packageName)
         }
@@ -86,12 +77,12 @@ object DefaultValueExtractor {
      *
      * @param fields Map of field names to their SingleDataSchema definitions
      * @param packageName The package name for type resolution
-     * @return List of extracted default constants, empty if no defaults found
+     * @return List of PropertySpec for DEFAULT_* constants, empty if no defaults found
      */
     fun extractDefaultConstantsFromFields(
         fields: Map<String, SingleDataSchema>,
         packageName: String
-    ): List<ExtractedDefault> {
+    ): List<PropertySpec> {
         return fields.mapNotNull { (name, schema) ->
             extractDefaultFromSchema(name, schema, packageName)
         }
@@ -112,7 +103,7 @@ object DefaultValueExtractor {
         propertyName: String,
         property: Property,
         packageName: String
-    ): ExtractedDefault? {
+    ): PropertySpec? {
         // Property extends SingleDataSchema, so we can treat it as a schema
         return extractDefaultFromSchema(propertyName, property, packageName)
     }
@@ -128,11 +119,11 @@ object DefaultValueExtractor {
      * @param packageName The package name for type resolution
      * @return The extracted default, or null if no default is defined or type is unsupported
      */
-    fun extractDefaultFromSchema(
+    internal fun extractDefaultFromSchema(
         fieldName: String,
         schema: SingleDataSchema,
         packageName: String
-    ): ExtractedDefault? {
+    ): PropertySpec? {
         val defaultValue = schema.default.orElse(null) ?: return null
         val schemaType = schema.type.orElse(null) ?: return null
 
@@ -140,19 +131,19 @@ object DefaultValueExtractor {
             DataSchemaType.BOOLEAN -> {
                 val value = defaultValue.asBoolean()
                 val propSpec = createBooleanDefault(asScreamingSnakeCase(fieldName), value)
-                ExtractedDefault(propSpec)
+                propSpec
             }
 
             DataSchemaType.INTEGER -> {
                 val value = defaultValue.asLong()
                 val propSpec = createIntegerDefault(asScreamingSnakeCase(fieldName), value)
-                ExtractedDefault(propSpec)
+                propSpec
             }
 
             DataSchemaType.NUMBER -> {
                 val value = defaultValue.asDouble()
                 val propSpec = createNumberDefault(asScreamingSnakeCase(fieldName), value)
-                ExtractedDefault(propSpec)
+                propSpec
             }
 
             DataSchemaType.STRING -> {
@@ -162,19 +153,19 @@ object DefaultValueExtractor {
                     val enumTypeName = ClassName("", enumName)
                     val enumConstantValue = defaultValue.asString()
                     val propSpec = createEnumDefault(asScreamingSnakeCase(fieldName), enumTypeName, enumConstantValue, enumName)
-                    ExtractedDefault(propSpec)
+                    propSpec
                 }
                 // Check if it's a date-time format
                 else if (isDateTimeFormat(schema)) {
                     val value = defaultValue.asString()
                     val propSpec = createInstantDefault(asScreamingSnakeCase(fieldName), value)
-                    ExtractedDefault(propSpec)
+                    propSpec
                 }
                 // Plain string
                 else {
                     val value = defaultValue.asString()
                     val propSpec = createStringDefault(asScreamingSnakeCase(fieldName), value)
-                    ExtractedDefault(propSpec)
+                    propSpec
                 }
             }
 
@@ -196,7 +187,7 @@ object DefaultValueExtractor {
                     val sealedTypeName = ClassName("", asClassName(fieldName))
                     val objectInstanceName = asValidEnumConstant(nameValue)
                     val propSpec = createObjectEnumDefault(asScreamingSnakeCase(fieldName), sealedTypeName, objectInstanceName)
-                    ExtractedDefault(propSpec)
+                    propSpec
                 } else {
                     // EDGE-2: Nested object defaults - skip silently
                     null
@@ -211,12 +202,12 @@ object DefaultValueExtractor {
                 val elementType = resolveArrayElementType(schema, packageName, fieldName)
                 if (defaultArray.isEmpty) {
                     val propSpec = createEmptyListDefault(asScreamingSnakeCase(fieldName), elementType)
-                    ExtractedDefault(propSpec)
+                    propSpec
                 } else {
                     val itemsEnum = resolveArrayItemsEnum(schema)
                     val propSpec = createListDefault(asScreamingSnakeCase(fieldName), elementType, defaultArray, itemsEnum, fieldName)
                     if (propSpec != null) {
-                        ExtractedDefault(propSpec)
+                        propSpec
                     } else {
                         logger.warn("Non-empty array default for '$fieldName' contains unsupported element type, skipping")
                         null
