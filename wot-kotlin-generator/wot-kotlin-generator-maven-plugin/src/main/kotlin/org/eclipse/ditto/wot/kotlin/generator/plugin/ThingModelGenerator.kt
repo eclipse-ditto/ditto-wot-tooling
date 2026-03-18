@@ -114,6 +114,10 @@ object ThingModelGenerator {
         val enumStrategy = EnumGenerationStrategyFactory.createStrategy(config)
         org.eclipse.ditto.wot.kotlin.generator.plugin.property.WrapperTypeChecker.setEnumGenerationStrategy(enumStrategy)
 
+        if (!config.submodelOnly && config.featureName != null) {
+            logger.warn("featureName is set but submodelOnly is false - featureName will be ignored")
+        }
+
         if (config.submodelOnly) {
             logger.info("Submodel-only mode: generating self-contained submodel package for '${thingModel.title.get()}'")
             classGenerator.generateSubmodelFeature(config.outputPackage, thingModel)
