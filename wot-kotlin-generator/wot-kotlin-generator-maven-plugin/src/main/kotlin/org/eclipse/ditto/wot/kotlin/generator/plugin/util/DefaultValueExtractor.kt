@@ -19,6 +19,7 @@ import com.squareup.kotlinpoet.DOUBLE
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LIST
 import com.squareup.kotlinpoet.LONG
+import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.STRING
@@ -41,10 +42,11 @@ object DefaultValueExtractor {
     /** Extracts DEFAULT_* constants from a map of schema fields (or properties). */
     fun extractDefaultConstants(
         fields: Map<String, SingleDataSchema>,
-        packageName: String
+        packageName: String,
+        resolvedTypes: Map<String, TypeName> = emptyMap()
     ): List<PropertySpec> {
         return fields.mapNotNull { (name, schema) ->
-            extractDefaultFromSchema(name, schema, packageName)
+            extractDefaultFromSchema(name, schema, packageName, resolvedTypes)
         }
     }
 
@@ -52,7 +54,8 @@ object DefaultValueExtractor {
     internal fun extractDefaultFromSchema(
         fieldName: String,
         schema: SingleDataSchema,
-        packageName: String
+        packageName: String,
+        resolvedTypes: Map<String, TypeName> = emptyMap()
     ): PropertySpec? {
         val defaultValue = schema.default.orElse(null) ?: return null
         val schemaType = schema.type.orElse(null) ?: return null
@@ -71,8 +74,8 @@ object DefaultValueExtractor {
 
             DataSchemaType.STRING -> when {
                 isStringEnum(schema) -> {
-                    val enumName = asClassName(fieldName)
-                    createEnumDefault(constantName, ClassName("", enumName), defaultValue.asString(), enumName)
+                    val enumType = resolveEnumType(fieldName, resolvedTypes)
+                    createEnumDefault(constantName, enumType, defaultValue.asString(), enumType.simpleName)
                 }
                 isDateTimeFormat(schema) ->
                     createInstantDefault(constantName, defaultValue.asString())
@@ -91,7 +94,8 @@ object DefaultValueExtractor {
                         logger.warn("Object enum default for '$fieldName' is missing 'name' field, skipping")
                         return null
                     }
-                    createObjectEnumDefault(constantName, ClassName("", asClassName(fieldName)), asValidEnumConstant(nameField.asString()))
+                    val sealedType = resolveEnumType(fieldName, resolvedTypes)
+                    createObjectEnumDefault(constantName, sealedType, asValidEnumConstant(nameField.asString()))
                 } else {
                     null
                 }
@@ -100,7 +104,7 @@ object DefaultValueExtractor {
             DataSchemaType.ARRAY -> {
                 if (!defaultValue.isArray) return null
                 val defaultArray = defaultValue.asArray()
-                val elementType = resolveArrayElementType(schema, packageName, fieldName)
+                val elementType = resolveArrayElementType(schema, packageName, fieldName, resolvedTypes)
                 if (defaultArray.isEmpty) {
                     createEmptyListDefault(constantName, elementType)
                 } else {
@@ -116,7 +120,23 @@ object DefaultValueExtractor {
         }
     }
 
-    private fun resolveArrayElementType(schema: SingleDataSchema, packageName: String, fieldName: String): TypeName {
+    /** Resolves the enum ClassName from resolved types, falling back to unqualified name. */
+    private fun resolveEnumType(fieldName: String, resolvedTypes: Map<String, TypeName>): ClassName {
+        val resolved = resolvedTypes[fieldName]?.copy(nullable = false)
+        if (resolved is ClassName) return resolved
+        return ClassName("", asClassName(fieldName))
+    }
+
+    private fun resolveArrayElementType(
+        schema: SingleDataSchema,
+        packageName: String,
+        fieldName: String,
+        resolvedTypes: Map<String, TypeName> = emptyMap()
+    ): TypeName {
+        val resolvedListType = resolvedTypes[fieldName]?.copy(nullable = false) as? ParameterizedTypeName
+        val resolvedElementType = resolvedListType?.typeArguments?.firstOrNull()?.copy(nullable = false)
+        if (resolvedElementType != null) return resolvedElementType
+
         val itemsJson = schema.toJson().getValue("items").orElse(null)?.asObject() ?: run {
             logger.warn("Missing array items schema for '$fieldName', defaulting to String")
             return STRING
