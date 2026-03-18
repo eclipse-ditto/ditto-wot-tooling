@@ -700,7 +700,9 @@ object ClassGenerator {
                 )
             ),
             originalName = propertyName,
-            defaultConstants = defaultValueExtractor.extractDefaultConstants(schemaMap, packageName)
+            defaultConstants = defaultValueExtractor.extractDefaultConstants(
+                schemaMap, packageName, updatedFields.associate { it.first to it.second.type }
+            )
         )
     }
 
@@ -1503,13 +1505,14 @@ object ClassGenerator {
                 })
         }
 
-        addInlineEnumsToTypeSpec(
+        val updatedProperties = addInlineEnumsToTypeSpec(
             properties.map { it.first.propertyName to it.second }.toMutableList(),
             typeSpecBuilder,
             packageName
         )
 
         val propertiesMap = properties.associate { it.first.propertyName to it.first }
+        val resolvedTypes = updatedProperties.associate { it.first to it.second.type }
 
         val typeSpec = typeSpecBuilder
             .addAnnotation(buildJsonIgnoreAnnotationSpec())
@@ -1522,7 +1525,7 @@ object ClassGenerator {
             listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true)),
             emptyList(),
             null,
-            defaultValueExtractor.extractDefaultConstants(propertiesMap, packageName)
+            defaultValueExtractor.extractDefaultConstants(propertiesMap, packageName, resolvedTypes)
         )
     }
 
