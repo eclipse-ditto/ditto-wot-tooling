@@ -300,17 +300,14 @@ object ClassGenerator {
      * @param companionBuilder The companion object builder to add constants to
      * @param defaultConstants List of PropertySpec for DEFAULT_* constants
      */
-    fun addDefaultsToCompanion(
+    internal fun addDefaultsToCompanion(
         companionBuilder: TypeSpec.Builder,
         defaultConstants: List<PropertySpec>,
         existingProperties: List<PropertySpec> = emptyList()
     ) {
-        defaultConstants.forEach { constant ->
-            val alreadyExists = existingProperties.any { it.name == constant.name }
-            if (!alreadyExists) {
-                companionBuilder.addProperty(constant)
-            }
-        }
+        defaultConstants
+            .filter { constant -> existingProperties.none { it.name == constant.name } }
+            .forEach { companionBuilder.addProperty(it) }
     }
 
     private fun createFileSpecBuilder(
@@ -669,8 +666,6 @@ object ClassGenerator {
             emptyList()
         }
 
-        val defaultConstants = defaultValueExtractor.extractDefaultConstantsFromFields(schemaMap, packageName)
-
         val typeSpecBuilder = TypeSpec.classBuilder(className)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
             .addAnnotation(buildJsonIncludeAnnotationSpec())
@@ -705,7 +700,7 @@ object ClassGenerator {
                 )
             ),
             originalName = propertyName,
-            defaultConstants = defaultConstants
+            defaultConstants = defaultValueExtractor.extractDefaultConstants(schemaMap, packageName)
         )
     }
 
@@ -1515,7 +1510,6 @@ object ClassGenerator {
         )
 
         val propertiesMap = properties.associate { it.first.propertyName to it.first }
-        val defaultConstants = defaultValueExtractor.extractDefaultConstants(propertiesMap, packageName)
 
         val typeSpec = typeSpecBuilder
             .addAnnotation(buildJsonIgnoreAnnotationSpec())
@@ -1528,7 +1522,7 @@ object ClassGenerator {
             listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true)),
             emptyList(),
             null,
-            defaultConstants
+            defaultValueExtractor.extractDefaultConstants(propertiesMap, packageName)
         )
     }
 

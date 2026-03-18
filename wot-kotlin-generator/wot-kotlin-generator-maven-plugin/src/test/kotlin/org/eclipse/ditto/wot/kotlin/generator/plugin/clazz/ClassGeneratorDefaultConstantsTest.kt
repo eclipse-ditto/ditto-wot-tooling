@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Contributors to the Eclipse Foundation
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information regarding copyright ownership.
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test
  * These tests verify that ClassGenerator properly integrates with DefaultValueExtractor
  * for extracting and placing DEFAULT_* constants on companion objects.
  *
- * @since 1.0.0
+ * @since 1.1.0
  */
 class ClassGeneratorDefaultConstantsTest {
 
