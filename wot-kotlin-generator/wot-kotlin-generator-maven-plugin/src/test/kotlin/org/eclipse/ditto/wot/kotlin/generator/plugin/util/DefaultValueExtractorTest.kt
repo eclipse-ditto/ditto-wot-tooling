@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Contributors to the Eclipse Foundation
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information regarding copyright ownership.
@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test
  * Tests the extraction of `"default"` values from WoT Thing Model JSON-LD schemas
  * and generation of corresponding `DEFAULT_*` companion object constants.
  *
- * @since 1.0.0
+ * @since 1.1.0
  */
 class DefaultValueExtractorTest {
 
@@ -554,7 +554,7 @@ class DefaultValueExtractorTest {
             """.trimIndent())) // No default
         )
 
-        val result = DefaultValueExtractor.extractDefaultConstantsFromFields(fields, TEST_PACKAGE)
+        val result = DefaultValueExtractor.extractDefaultConstants(fields, TEST_PACKAGE)
 
         assertEquals(2, result.size)
         assertTrue(result.any { it.name == "DEFAULT_IS_ENABLED" })
@@ -576,7 +576,7 @@ class DefaultValueExtractorTest {
             """.trimIndent()))
         )
 
-        val result = DefaultValueExtractor.extractDefaultConstantsFromFields(fields, TEST_PACKAGE)
+        val result = DefaultValueExtractor.extractDefaultConstants(fields, TEST_PACKAGE)
 
         assertTrue(result.isEmpty())
     }
@@ -585,7 +585,7 @@ class DefaultValueExtractorTest {
     fun `should return empty list for empty fields map`() {
         val fields = emptyMap<String, SingleDataSchema>()
 
-        val result = DefaultValueExtractor.extractDefaultConstantsFromFields(fields, TEST_PACKAGE)
+        val result = DefaultValueExtractor.extractDefaultConstants(fields, TEST_PACKAGE)
 
         assertTrue(result.isEmpty())
     }
@@ -607,7 +607,7 @@ class DefaultValueExtractorTest {
             """.trimIndent()))
         )
 
-        val result = DefaultValueExtractor.extractDefaultConstantsFromFields(fields, TEST_PACKAGE)
+        val result = DefaultValueExtractor.extractDefaultConstants(fields, TEST_PACKAGE)
 
         assertEquals(2, result.size)
         assertTrue(result.any { it.name == "DEFAULT_TEMPERATURE" })
@@ -631,7 +631,7 @@ class DefaultValueExtractorTest {
     fun `should create listOf for boolean array`() {
         val array = JsonArray.of(true, false)
 
-        val result = DefaultValueExtractor.createListDefault("FLAGS", BOOLEAN, array, null, "flags")
+        val result = DefaultValueExtractor.createListDefault("FLAGS", BOOLEAN, array, null)
 
         assertNotNull(result)
         assertEquals("DEFAULT_FLAGS", result!!.name)
@@ -645,7 +645,7 @@ class DefaultValueExtractorTest {
     fun `should create listOf for integer array`() {
         val array = JsonArray.of(1, 2, 3)
 
-        val result = DefaultValueExtractor.createListDefault("COUNTS", LONG, array, null, "counts")
+        val result = DefaultValueExtractor.createListDefault("COUNTS", LONG, array, null)
 
         assertNotNull(result)
         assertEquals("DEFAULT_COUNTS", result!!.name)
@@ -657,7 +657,7 @@ class DefaultValueExtractorTest {
     fun `should create listOf for double array`() {
         val array = JsonArray.of(1.5, 2.0)
 
-        val result = DefaultValueExtractor.createListDefault("VALUES", DOUBLE, array, null, "values")
+        val result = DefaultValueExtractor.createListDefault("VALUES", DOUBLE, array, null)
 
         assertNotNull(result)
         assertEquals("DEFAULT_VALUES", result!!.name)
@@ -670,7 +670,7 @@ class DefaultValueExtractorTest {
     fun `should create listOf for string array`() {
         val array = JsonArray.of("a", "b")
 
-        val result = DefaultValueExtractor.createListDefault("TAGS", STRING, array, null, "tags")
+        val result = DefaultValueExtractor.createListDefault("TAGS", STRING, array, null)
 
         assertNotNull(result)
         assertEquals("DEFAULT_TAGS", result!!.name)
@@ -684,7 +684,7 @@ class DefaultValueExtractorTest {
         val enumType = ClassName("", "SeverityItem")
         val enumValues = listOf("OK", "WARNING", "CRITICAL")
 
-        val result = DefaultValueExtractor.createListDefault("SEVERITIES", enumType, array, enumValues, "severities")
+        val result = DefaultValueExtractor.createListDefault("SEVERITIES", enumType, array, enumValues)
 
         assertNotNull(result)
         assertEquals("DEFAULT_SEVERITIES", result!!.name)
