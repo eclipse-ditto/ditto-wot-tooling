@@ -24,8 +24,11 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import org.eclipse.ditto.wot.model.Property
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.Utils
+import org.eclipse.ditto.wot.openapi.generator.Utils.DeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
 import org.eclipse.ditto.wot.openapi.generator.Utils.asPropertyName
+import org.eclipse.ditto.wot.openapi.generator.Utils.buildDeprecationDescription
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractPropertyCategory
 import org.eclipse.ditto.wot.openapi.generator.Utils.isPrimitive
@@ -42,10 +45,11 @@ object FeaturesPathsGenerator {
 
     var apiResponsesProvider: ApiResponsesProvider = ApiResponsesProvider
 
-    fun generateFeaturesPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI) {
+    fun generateFeaturesPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice? = null) {
         val featurePropertiesModels = featureModel.properties.getOrNull()
         val featureTitle = featureModel.title.getOrNull()?.toString() ?: featureName
-        paths.putAll(providePathItemsForFeature(featureName, featureTitle))
+        val submodelDeprecated = submodelDeprecationNotice?.deprecated == true
+        paths.putAll(providePathItemsForFeature(featureName, featureTitle, submodelDeprecated, submodelDeprecationNotice))
 
         featurePropertiesModels?.entries
             ?.sortedBy { extractPropertyCategory(it.value) + it.key }
@@ -54,22 +58,28 @@ object FeaturesPathsGenerator {
                 if (dittoCategory != null && !paths.containsKey("/{thingId}/features/$featureName/properties/$dittoCategory")) {
                     paths.addPathItem(
                         "/{thingId}/features/$featureName/properties/$dittoCategory",
-                        providePathItemFeaturePropertiesCategory(featureName, featureTitle, dittoCategory)
+                        providePathItemFeaturePropertiesCategory(featureName, featureTitle, dittoCategory, submodelDeprecationNotice)
                     )
                 }
                 paths.addPathItem("/{thingId}/features/$featureName/properties/${dittoCategory?.let { "$it/" } ?: ""}${it.key}",
-                    providePathItemFeatureProperty(featureName, featureTitle, it.value, openAPI))
+                    providePathItemFeatureProperty(featureName, featureTitle, it.value, openAPI, submodelDeprecationNotice))
             }
     }
 
     private fun providePathItemFeaturePropertiesCategory(
         featureName: String,
         featureTitle: String,
-        category: String
-    ): PathItem = PathItem()
+        category: String,
+        submodelDeprecationNotice: DeprecationNotice? = null
+    ): PathItem {
+        val deprecated = submodelDeprecationNotice?.deprecated == true
+        val deprecationDescription = buildDeprecationDescription(submodelDeprecationNotice)
+        return PathItem()
         .get(
             Operation()
+                .also { if (deprecated) it.deprecated(true) }
                 .summary("Retrieves all '$category' categorized properties of feature $featureTitle")
+                .description(deprecationDescription)
                 .tags(listOf("Feature: $featureTitle"))
                 .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                 .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
@@ -91,13 +101,17 @@ object FeaturesPathsGenerator {
                         .addApiResponse(apiResponsesProvider.provide401ApiResponse("features/$featureName/properties/$category"))
                 )
         )
+    }
 
-    private fun providePathItemsForFeature(featureName: String, featureTitle: String): Map<String, PathItem> {
+    private fun providePathItemsForFeature(featureName: String, featureTitle: String, deprecated: Boolean = false, deprecationNotice: DeprecationNotice? = null): Map<String, PathItem> {
+        val deprecationDescription = buildDeprecationDescription(deprecationNotice)
         return mapOf(
             "/{thingId}/features/$featureName" to PathItem()
                 .get(
                     Operation()
+                        .also { if (deprecated) it.deprecated(true) }
                         .summary("Retrieves the feature $featureTitle")
+                        .description(deprecationDescription)
                         .tags(listOf("Feature: $featureTitle"))
                         .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                         .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
@@ -126,11 +140,13 @@ object FeaturesPathsGenerator {
         featureName: String,
         featureTitle: String,
         property: Property,
-        openAPI: OpenAPI
+        openAPI: OpenAPI,
+        submodelDeprecationNotice: DeprecationNotice? = null
     ): PathItem {
 
         val dittoCategory = extractPropertyCategory(property)
-        val deprecationNotice = extractDeprecationNotice(property)
+        val propertyDeprecationNotice = extractDeprecationNotice(property)
+        val deprecationNotice = propertyDeprecationNotice ?: submodelDeprecationNotice
         val deprecated = deprecationNotice?.deprecated == true
         val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
         val responseSchema = provideSchema(property, featureName, openAPI)

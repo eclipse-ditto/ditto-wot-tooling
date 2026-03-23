@@ -15,6 +15,7 @@ package org.eclipse.ditto.wot.openapi.generator
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.Utils.DeprecationNotice
 
 /**
  * Interface for generating OpenAPI specifications from Web of Things (WoT) Thing models.
@@ -67,15 +68,16 @@ interface OpenApiGenerator {
      * @param paths The OpenAPI paths object to add generated paths to
      * @param openAPI The OpenAPI instance for schema registration
      */
-    fun generateFeaturePaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI)
-    
+    fun generateFeaturePaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice? = null)
+
     /**
      * Generates OpenAPI paths for feature actions operations.
-     * 
+     *
      * @param featureName The name of the feature
      * @param featureModel The WoT Thing model representing the feature
      * @param paths The OpenAPI paths object to add generated paths to
      * @param openAPI The OpenAPI instance for schema registration
+     * @param submodelDeprecationNotice Optional deprecation notice from the submodel link
      */
-    fun generateFeatureActionsPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI)
+    fun generateFeatureActionsPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice? = null)
 }

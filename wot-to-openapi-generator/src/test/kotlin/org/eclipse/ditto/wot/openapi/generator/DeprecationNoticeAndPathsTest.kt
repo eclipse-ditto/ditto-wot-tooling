@@ -350,6 +350,133 @@ class DeprecationNoticeAndPathsTest {
         assertContains(actionDescription, "2.0.0")
     }
 
+    @Test
+    fun `deprecated submodel link marks all feature operations as deprecated`() {
+        val featureModel = thingModelFromJson(
+            """
+            {
+              "@context": [
+                "https://www.w3.org/2022/wot/td/v1.1",
+                { "ditto": "https://ditto.eclipseprojects.io/wot/ditto-extension#" }
+              ],
+              "@type": "tm:ThingModel",
+              "title": "Battery",
+              "properties": {
+                "voltage": {
+                  "title": "Voltage",
+                  "type": "number",
+                  "ditto:category": "status"
+                }
+              },
+              "actions": {
+                "calibrate": {
+                  "title": "Calibrate",
+                  "input": { "type": "string" }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val paths = Paths()
+        val api = openApi()
+        val submodelDeprecation = Utils.DeprecationNotice(deprecated = true, removalVersion = "2.0.0")
+
+        FeaturesPathsGenerator.generateFeaturesPaths("battery", featureModel, paths, api, submodelDeprecation)
+        FeatureActionsPathsGenerator.generateFeatureActionsPaths("battery", featureModel, paths, api, submodelDeprecation)
+
+        // Feature-level GET should be deprecated
+        val featurePath = paths["/{thingId}/features/battery"]
+        assertTrue(featurePath?.get?.deprecated == true)
+        assertNotNull(featurePath?.get?.description)
+        assertContains(featurePath!!.get.description, "**Deprecated.**")
+        assertContains(featurePath.get.description, "2.0.0")
+
+        // Category path should inherit submodel deprecation
+        val categoryPath = paths["/{thingId}/features/battery/properties/status"]
+        assertTrue(categoryPath?.get?.deprecated == true)
+        assertNotNull(categoryPath?.get?.description)
+        assertContains(categoryPath!!.get.description, "**Deprecated.**")
+        assertContains(categoryPath.get.description, "2.0.0")
+
+        // Property operations should inherit submodel deprecation
+        val propertyPath = paths["/{thingId}/features/battery/properties/status/voltage"]
+        assertTrue(propertyPath?.get?.deprecated == true)
+        assertContains(propertyPath!!.get.description!!, "**Deprecated.**")
+
+        // Action operations should inherit submodel deprecation
+        val actionPost = paths["/{thingId}/features/battery/inbox/messages/calibrate"]?.post
+        assertTrue(actionPost?.deprecated == true)
+        assertContains(actionPost!!.description!!, "**Deprecated.**")
+    }
+
+    @Test
+    fun `property-level deprecation takes precedence over submodel-level deprecation`() {
+        val featureModel = thingModelFromJson(
+            """
+            {
+              "@context": "https://www.w3.org/2022/wot/td/v1.1",
+              "@type": "tm:ThingModel",
+              "title": "Battery",
+              "properties": {
+                "voltage": {
+                  "title": "Voltage",
+                  "type": "number",
+                  "ditto:deprecationNotice": {
+                    "deprecated": true,
+                    "supersededBy": "#/properties/batteryLevel",
+                    "removalVersion": "3.0.0"
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val paths = Paths()
+        val api = openApi()
+        val submodelDeprecation = Utils.DeprecationNotice(deprecated = true, removalVersion = "2.0.0")
+
+        FeaturesPathsGenerator.generateFeaturesPaths("battery", featureModel, paths, api, submodelDeprecation)
+
+        // Property has its own deprecation notice - should use that (3.0.0), not the submodel one (2.0.0)
+        val propertyPath = paths["/{thingId}/features/battery/properties/voltage"]
+        assertTrue(propertyPath?.get?.deprecated == true)
+        assertContains(propertyPath!!.get.description!!, "3.0.0")
+        assertContains(propertyPath.get.description!!, "#/properties/batteryLevel")
+    }
+
+    @Test
+    fun `non-deprecated submodel does not mark feature operations as deprecated`() {
+        val featureModel = thingModelFromJson(
+            """
+            {
+              "@context": "https://www.w3.org/2022/wot/td/v1.1",
+              "@type": "tm:ThingModel",
+              "title": "Battery",
+              "properties": {
+                "voltage": {
+                  "title": "Voltage",
+                  "type": "number"
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val paths = Paths()
+        val api = openApi()
+
+        // No submodel deprecation notice (null)
+        FeaturesPathsGenerator.generateFeaturesPaths("battery", featureModel, paths, api)
+
+        val featurePath = paths["/{thingId}/features/battery"]
+        assertNull(featurePath?.get?.deprecated)
+
+        val propertyPath = paths["/{thingId}/features/battery/properties/voltage"]
+        assertNull(propertyPath?.get?.deprecated)
+    }
+
     private fun thingModelFromJson(json: String): ThingModel =
         ThingModel.fromJson(JsonObject.of(json))
 

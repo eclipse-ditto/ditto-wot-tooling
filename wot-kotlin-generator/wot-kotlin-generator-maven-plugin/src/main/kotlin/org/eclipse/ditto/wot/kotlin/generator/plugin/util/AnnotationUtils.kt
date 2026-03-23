@@ -24,6 +24,7 @@ import org.eclipse.ditto.json.JsonPointer
 import org.eclipse.ditto.json.JsonValue
 import org.eclipse.ditto.wot.kotlin.generator.common.model.DittoJsonDsl
 import org.eclipse.ditto.wot.model.Action
+import org.eclipse.ditto.wot.model.BaseLink
 import org.eclipse.ditto.wot.model.Property
 import org.eclipse.ditto.wot.model.SingleDataSchema
 import kotlin.jvm.optionals.getOrNull
@@ -91,6 +92,8 @@ fun extractDeprecationNotice(property: Property): DeprecationNotice? = extractDe
 fun extractDeprecationNotice(action: Action): DeprecationNotice? = extractDeprecationNotice(action.toJson())
 
 fun extractDeprecationNotice(schema: SingleDataSchema): DeprecationNotice? = extractDeprecationNotice(schema.toJson())
+
+fun extractDeprecationNotice(link: BaseLink<*>): DeprecationNotice? = extractDeprecationNotice(link.toJson())
 
 fun extractDeprecationNotice(jsonObject: JsonObject): DeprecationNotice? {
     val deprecationNotice = jsonObject.getValue(JsonPointer.of(DITTO_DEPRECATION_NOTICE))
