@@ -35,6 +35,8 @@ class ConfigurationBuilder {
     private var generateDsl: Boolean = true
     private var generateEnums: Boolean = true
     private var generateInterfaces: Boolean = true
+    private var submodelOnly: Boolean = false
+    private var featureName: String? = null
 
     /**
      * Sets the URL or path to the WoT Thing Model to process.
@@ -117,6 +119,22 @@ class ConfigurationBuilder {
     }
 
     /**
+     * Sets whether to generate a standalone submodel package instead of a full device model.
+     */
+    fun submodelOnly(generateStandaloneSubmodel: Boolean): ConfigurationBuilder {
+        this.submodelOnly = generateStandaloneSubmodel
+        return this
+    }
+
+    /**
+     * Sets the feature name (JSON key) used in submodel-only generation.
+     */
+    fun featureName(featureName: String?): ConfigurationBuilder {
+        this.featureName = featureName
+        return this
+    }
+
+    /**
      * Applies a minimal configuration suitable for simple code generation.
      */
     fun minimal(): ConfigurationBuilder {
@@ -166,7 +184,9 @@ class ConfigurationBuilder {
             enumGenerationStrategy = enumGenerationStrategy,
             generateDsl = generateDsl,
             generateEnums = generateEnums,
-            generateInterfaces = generateInterfaces
+            generateInterfaces = generateInterfaces,
+            submodelOnly = submodelOnly,
+            featureName = featureName
         )
     }
 

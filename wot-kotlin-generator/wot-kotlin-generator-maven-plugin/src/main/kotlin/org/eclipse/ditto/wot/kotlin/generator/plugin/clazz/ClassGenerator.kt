@@ -164,6 +164,38 @@ object ClassGenerator {
     }
 
     /**
+     * Generates a self-contained set of classes from a shared submodel, mirroring the
+     * structure of a full device model but without attributes and with a single feature.
+     *
+     * Produces (under [packageName]):
+     * - `features/{featureName}/FeatureClass.kt` — feature and properties classes
+     * - `features/FeatureNameFeatures.kt` — device-agnostic Features container
+     * - `FeatureNameThing.kt` — device-agnostic Thing extending [Thing]<[Nothing], FeatureNameFeatures>
+     *
+     * Used when [GeneratorConfiguration.submodelOnly] is true.
+     *
+     * @param packageName The root package for all generated classes
+     * @param featureModel The WoT Thing Model representing the submodel
+     */
+    suspend fun generateSubmodelFeature(packageName: String, featureModel: ThingModel) {
+        val featuresPackage = "$packageName.features"
+        val canonicalFeatureName = config?.featureName
+            ?: asPropertyName(featureModel.title.get().toString())
+        val (featurePropertySpec, originalFeatureName) = generateSingleFeature(
+            featureModel, canonicalFeatureName, featuresPackage
+        )
+        val featureClassName = asClassName(asPropertyName(originalFeatureName))
+
+        generateFeaturesClassFromFeatures(
+            "${featureClassName}Features",
+            listOf(Pair(featurePropertySpec, originalFeatureName)),
+            featuresPackage,
+            originalName = "features"
+        )
+        generateSubmodelThingWrapper(featureClassName, packageName, featuresPackage)
+    }
+
+    /**
      * Generates a new class and writes it to the output directory.
      *
      * Creates a Kotlin class file with the specified type specification, adds
@@ -517,48 +549,42 @@ object ClassGenerator {
         dslGenerator.generateAttributesOrFeaturesDslFunSpec("features", featuresName, featuresPackage)
 
 
+    private suspend fun generateSingleFeature(
+        featureModel: ThingModel,
+        originalFeatureName: String,
+        featuresPackageName: String
+    ): Pair<PropertySpec, String> {
+        val propertyName = asPropertyName(originalFeatureName)
+        val featurePackage = "$featuresPackageName.${asPackageName(originalFeatureName)}"
+        val linkProperties = propertyResolver.resolveProperties(
+            featureModel.properties.getOrNull(), "$featurePackage.properties",
+            PropertyRole.nextLevel(PropertyRole.FEATURE), propertyName
+        )
+        generateCategoryMarkerClasses(linkProperties.values.filterNotNull(), featuresPackageName)
+        if (linkProperties.isNotEmpty()) {
+            generateFeaturePropertiesClass(
+                asClassName(propertyName), linkProperties, featurePackage, featuresPackageName, originalFeatureName
+            )
+        }
+        generateFeatureClassFromProperties(
+            originalFeatureName, asClassName(propertyName), featurePackage,
+            featureModel.properties.getOrNull(), featureModel.actions.getOrNull()
+        )
+        return Pair(
+            PropertySpec.builder(
+                propertyName, ClassName(featurePackage, asClassName(propertyName)).copy(nullable = true)
+            ).mutable(true).initializer("null").build(),
+            originalFeatureName
+        )
+    }
+
     private suspend fun resolveFeatures(
         links: Iterable<BaseLink<*>>,
         featuresPackageName: String
     ): List<Pair<PropertySpec, String>> {
         return links.filter { LinkRelationType.isSubmodel(it) }.map {
             val featureModel = ThingModelGenerator.loadModel(it.href.toString())
-            val originalFeatureName = getLinkInstanceName(it)
-            val propertyName = asPropertyName(originalFeatureName)
-            val packageName = "${featuresPackageName}.${asPackageName(originalFeatureName)}"
-            val role = PropertyRole.FEATURE
-            val linkProperties = propertyResolver.resolveProperties(
-                featureModel.properties.getOrNull(), "$packageName.properties", PropertyRole.nextLevel(role),
-                propertyName
-            )
-
-            val allProps2Category = linkProperties
-
-            generateCategoryMarkerClasses(
-                allProps2Category.values.filterNotNull(), featuresPackageName
-            )
-
-            if (allProps2Category.isNotEmpty()) {
-                generateFeaturePropertiesClass(
-                    asClassName(propertyName),
-                    allProps2Category,
-                    packageName,
-                    featuresPackageName,
-                    originalFeatureName
-                )
-            }
-
-            val wotProperties = featureModel.properties.getOrNull()
-            val wotActions = featureModel.actions.getOrNull()
-            generateFeatureClassFromProperties(
-                originalFeatureName, asClassName(propertyName), packageName, wotProperties, wotActions
-            )
-            Pair(
-                PropertySpec.builder(
-                    propertyName, ClassName(packageName, asClassName(propertyName)).copy(nullable = true)
-                ).mutable(true).initializer("null").build(),
-                originalFeatureName
-            )
+            generateSingleFeature(featureModel, getLinkInstanceName(it), featuresPackageName)
         }
     }
 
@@ -886,7 +912,7 @@ object ClassGenerator {
     }
 
     private fun generateFeaturesClassFromFeatures(className: String, properties: List<Pair<PropertySpec, String>>,
-                                                  packageName: String) {
+                                                  packageName: String, originalName: String? = null) {
         val featureDslFunsSpecs = properties.map {
             val propClassName = it.first.type as ClassName
             dslGenerator.generateFeatureDslFunSpec(propClassName.simpleName, propClassName.packageName)
@@ -936,7 +962,8 @@ object ClassGenerator {
             typeSpec,
             className,
             packageName,
-            listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true))
+            listOf(dslGenerator.generateFeatureDslFunSpec(className, packageName, true)),
+            originalName = originalName
         )
     }
 
@@ -1766,5 +1793,30 @@ object ClassGenerator {
             role
         )?.let { fieldsDslFunSpecs += it }
         return fieldsDslFunSpecs
+    }
+
+
+    private fun generateSubmodelThingWrapper(featureClassName: String, packageName: String,
+                                             featuresPackage: String) {
+        val thingClassName = "${featureClassName}Thing"
+        val featuresClassName = "${featureClassName}Features"
+
+        val typeSpecBuilder = TypeSpec.classBuilder(thingClassName)
+            .addAnnotation(buildDittoJsonDslAnnotationSpec())
+            .addAnnotation(buildJsonIncludeAnnotationSpec())
+            .addAnnotation(buildJsonIgnoreAnnotationSpec())
+            .superclass(
+                ClassName(Const.COMMON_PACKAGE, "Thing")
+                    .parameterizedBy(NOTHING, ClassName(featuresPackage, featuresClassName))
+            )
+            .addFunction(generateFeaturesDslFunSpec(featuresClassName, featuresPackage))
+
+        val topLevelDslFun = dslGenerator.generateFeatureDslFunSpec(thingClassName, packageName, true)
+
+        FileSpec.builder(packageName, thingClassName)
+            .addType(typeSpecBuilder.build())
+            .addFunction(topLevelDslFun)
+            .build()
+            .writeTo(Path(outputDir))
     }
 }
