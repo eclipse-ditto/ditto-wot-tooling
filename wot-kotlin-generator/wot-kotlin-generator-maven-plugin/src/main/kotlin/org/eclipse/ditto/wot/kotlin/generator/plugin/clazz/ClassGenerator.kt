@@ -1046,26 +1046,9 @@ object ClassGenerator {
         objectSchema.properties.forEach { (property, schema) ->
             val name = asClassProperty(property)
             val isRequired = property in requiredFields
-            val kotlinType = when (schema.type.get()) {
-                DataSchemaType.OBJECT -> {
-                    val nestedClassName = "${asClassName(className)}${asClassName(name)}"
-                    generateDataClassForAction(nestedClassName, schema as ObjectSchema, packageName)
-                    ClassName(packageName, nestedClassName).copy(nullable = !isRequired)
-                }
-
-                DataSchemaType.ARRAY  -> {
-                    val itemSchema = ((schema as ArraySchema).items.getOrNull()!! as SingleDataSchema)
-                    if (itemSchema.type.get() == DataSchemaType.OBJECT) {
-                        val nestedClassName = "${asClassName(className)}${asClassName(name)}Item"
-                        generateDataClassForAction(nestedClassName, itemSchema as ObjectSchema, packageName)
-                        LIST.parameterizedBy(ClassName(packageName, nestedClassName)).copy(nullable = !isRequired)
-                    } else {
-                        LIST.parameterizedBy(asPrimitiveClassName(itemSchema)).copy(nullable = !isRequired)
-                    }
-                }
-
-                else                  -> asPrimitiveClassName(schema, !isRequired)
-            }
+            val kotlinType = resolveActionPropertyType(
+                schema, property, name, className, packageName, isRequired, typeSpecBuilder
+            )
 
             val paramSpec = ParameterSpec.builder(name, kotlinType)
             if (!isRequired) {
@@ -1091,6 +1074,131 @@ object ClassGenerator {
             .addType(typeSpecBuilder.build())
             .build()
         file.writeTo(Path(outputDir))
+    }
+
+    /**
+     * Resolves the Kotlin type for a property within an action input/output data class.
+     *
+     * Handles all WoT data types including enums (STRING, INTEGER, NUMBER, OBJECT),
+     * nested objects, arrays (with enum/object items and nested arrays), and primitives.
+     */
+    private fun resolveActionPropertyType(
+        schema: SingleDataSchema,
+        propertyName: String,
+        fieldName: String,
+        parentClassName: String,
+        packageName: String,
+        isRequired: Boolean,
+        typeSpecBuilder: TypeSpec.Builder
+    ): TypeName {
+        val enumArray = schema.enum
+        val hasEnum = enumArray?.isNotEmpty() == true
+
+        return when {
+            schema.type.get() == DataSchemaType.OBJECT && !hasEnum -> {
+                val nestedClassName = "${asClassName(parentClassName)}${asClassName(fieldName)}"
+                generateDataClassForAction(nestedClassName, schema as ObjectSchema, packageName)
+                ClassName(packageName, nestedClassName).copy(nullable = !isRequired)
+            }
+
+            schema.type.get() == DataSchemaType.ARRAY -> {
+                val arraySchema = schema as ArraySchema
+                val itemType = resolveActionArrayItemType(
+                    arraySchema, fieldName, parentClassName, packageName, typeSpecBuilder
+                )
+                LIST.parameterizedBy(itemType).copy(nullable = !isRequired)
+            }
+
+            hasEnum -> {
+                resolveActionEnumType(
+                    schema, propertyName, enumArray!!, packageName, parentClassName, typeSpecBuilder
+                ).copy(nullable = !isRequired)
+            }
+
+            else -> asPrimitiveClassName(schema, !isRequired)
+        }
+    }
+
+    /**
+     * Resolves the Kotlin type for array items within an action data class.
+     *
+     * Handles object items, enum items, nested arrays, and primitive items.
+     */
+    private fun resolveActionArrayItemType(
+        arraySchema: ArraySchema,
+        fieldName: String,
+        parentClassName: String,
+        packageName: String,
+        typeSpecBuilder: TypeSpec.Builder
+    ): TypeName {
+        val itemSchema = arraySchema.items.getOrNull()!! as SingleDataSchema
+        val itemEnumArray = itemSchema.enum
+        val itemHasEnum = itemEnumArray?.isNotEmpty() == true
+
+        return when {
+            itemSchema is ArraySchema -> {
+                val nestedItemType = resolveActionArrayItemType(
+                    itemSchema, fieldName, parentClassName, packageName, typeSpecBuilder
+                )
+                LIST.parameterizedBy(nestedItemType)
+            }
+
+            itemSchema.type.get() == DataSchemaType.OBJECT && !itemHasEnum -> {
+                val nestedClassName = "${asClassName(parentClassName)}${asClassName(fieldName)}Item"
+                generateDataClassForAction(nestedClassName, itemSchema as ObjectSchema, packageName)
+                ClassName(packageName, nestedClassName)
+            }
+
+            itemHasEnum -> {
+                resolveActionEnumType(
+                    itemSchema, "${fieldName}Item", itemEnumArray!!, packageName, parentClassName, typeSpecBuilder
+                )
+            }
+
+            else -> asPrimitiveClassName(itemSchema)
+        }
+    }
+
+    /**
+     * Generates an enum class for a property within an action data class and returns its type name.
+     *
+     * Supports both inline and separate class enum generation strategies.
+     * For inline strategy, the enum is nested inside the containing data class.
+     * For separate class strategy, the enum is written as a standalone file.
+     */
+    private fun resolveActionEnumType(
+        schema: SingleDataSchema,
+        propertyName: String,
+        enumArray: MutableSet<org.eclipse.ditto.json.JsonValue>,
+        packageName: String,
+        parentClassName: String,
+        typeSpecBuilder: TypeSpec.Builder
+    ): ClassName {
+        val schemaType = schema.type.get()
+        return if (enumGenerationStrategy != null) {
+            val enumKey = enumGenerationStrategy!!.generateEnum(
+                schema, propertyName, enumArray, schemaType, packageName, parentClassName
+            )
+            val isInlineStrategy = enumGenerationStrategy!!.javaClass.simpleName == "InlineEnumGenerationStrategy"
+            if (isInlineStrategy) {
+                val enumSpec = EnumRegistry.getEnum(enumKey)
+                if (enumSpec != null) {
+                    typeSpecBuilder.addType(enumSpec)
+                }
+                ClassName("", enumKey)
+            } else {
+                ClassName(packageName, enumKey)
+            }
+        } else {
+            val enumKey = enumGenerator.generateEnum(
+                schema, propertyName, enumArray, schemaType, parentClassName
+            )
+            val enumSpec = EnumRegistry.getEnum(enumKey)
+            if (enumSpec != null) {
+                typeSpecBuilder.addType(enumSpec)
+            }
+            ClassName("", enumKey)
+        }
     }
 
     private fun createFeatureCompanionObject(featureName: String): TypeSpec {
