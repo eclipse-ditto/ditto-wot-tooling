@@ -25,6 +25,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import org.eclipse.ditto.wot.model.Action
 import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
+import org.eclipse.ditto.wot.openapi.generator.Utils.DeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.mergeWithDeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.providers.ApiResponsesProvider
@@ -38,19 +39,20 @@ object FeatureActionsPathsGenerator {
 
     var apiResponsesProvider: ApiResponsesProvider = ApiResponsesProvider
 
-    fun generateFeatureActionsPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI) {
+    fun generateFeatureActionsPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice? = null) {
         val featureTitle = featureModel.title.getOrNull()?.toString() ?: featureName
         val featureActions = featureModel.actions.getOrNull()
         featureActions?.entries?.sortedBy { it.key }?.map {
             paths.addPathItem(
                 "/{thingId}/features/$featureName/inbox/messages/${it.key}",
-                providePathForAction(featureTitle, featureName, it.value, openAPI)
+                providePathForAction(featureTitle, featureName, it.value, openAPI, submodelDeprecationNotice)
             )
         }
     }
 
-    private fun providePathForAction(featureTitle: String, featureName: String, action: Action, openAPI: OpenAPI): PathItem {
-        val deprecationNotice = extractDeprecationNotice(action)
+    private fun providePathForAction(featureTitle: String, featureName: String, action: Action, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice? = null): PathItem {
+        val actionDeprecationNotice = extractDeprecationNotice(action)
+        val deprecationNotice = actionDeprecationNotice ?: submodelDeprecationNotice
         val deprecated = deprecationNotice?.deprecated == true
 
         val operation = Operation()

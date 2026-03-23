@@ -158,9 +158,9 @@ object ClassGenerator {
      * @param links The WoT links containing feature definitions
      */
     suspend fun generateFeaturesClass(parentPackage: String, links: Iterable<BaseLink<*>>) {
-        val features = resolveFeatures(links, "$parentPackage.features")
+        val featuresWithDeprecation = resolveFeatures(links, "$parentPackage.features")
         val featuresPackage = "$parentPackage.features"
-        generateFeaturesClassFromFeatures(FEATURES_CLASS_NAME, features, featuresPackage)
+        generateFeaturesClassFromFeatures(FEATURES_CLASS_NAME, featuresWithDeprecation, featuresPackage)
     }
 
     /**
@@ -181,14 +181,14 @@ object ClassGenerator {
         val featuresPackage = "$packageName.features"
         val canonicalFeatureName = config?.featureName
             ?: asPropertyName(featureModel.title.get().toString())
-        val (featurePropertySpec, originalFeatureName) = generateSingleFeature(
+        val (featurePropertySpec, originalFeatureName, _) = generateSingleFeature(
             featureModel, canonicalFeatureName, featuresPackage
         )
         val featureClassName = asClassName(asPropertyName(originalFeatureName))
 
         generateFeaturesClassFromFeatures(
             "${featureClassName}Features",
-            listOf(Pair(featurePropertySpec, originalFeatureName)),
+            listOf(Triple(featurePropertySpec, originalFeatureName, null)),
             featuresPackage,
             originalName = "features"
         )
@@ -552,8 +552,9 @@ object ClassGenerator {
     private suspend fun generateSingleFeature(
         featureModel: ThingModel,
         originalFeatureName: String,
-        featuresPackageName: String
-    ): Pair<PropertySpec, String> {
+        featuresPackageName: String,
+        submodelDeprecationNotice: DeprecationNotice? = null
+    ): Triple<PropertySpec, String, DeprecationNotice?> {
         val propertyName = asPropertyName(originalFeatureName)
         val featurePackage = "$featuresPackageName.${asPackageName(originalFeatureName)}"
         val linkProperties = propertyResolver.resolveProperties(
@@ -568,23 +569,25 @@ object ClassGenerator {
         }
         generateFeatureClassFromProperties(
             originalFeatureName, asClassName(propertyName), featurePackage,
-            featureModel.properties.getOrNull(), featureModel.actions.getOrNull()
+            featureModel.properties.getOrNull(), featureModel.actions.getOrNull(), submodelDeprecationNotice
         )
-        return Pair(
+        return Triple(
             PropertySpec.builder(
                 propertyName, ClassName(featurePackage, asClassName(propertyName)).copy(nullable = true)
             ).mutable(true).initializer("null").build(),
-            originalFeatureName
+            originalFeatureName,
+            submodelDeprecationNotice
         )
     }
 
     private suspend fun resolveFeatures(
         links: Iterable<BaseLink<*>>,
         featuresPackageName: String
-    ): List<Pair<PropertySpec, String>> {
+    ): List<Triple<PropertySpec, String, DeprecationNotice?>> {
         return links.filter { LinkRelationType.isSubmodel(it) }.map {
             val featureModel = ThingModelGenerator.loadModel(it.href.toString())
-            generateSingleFeature(featureModel, getLinkInstanceName(it), featuresPackageName)
+            val submodelDeprecationNotice = extractDeprecationNotice(it)
+            generateSingleFeature(featureModel, getLinkInstanceName(it), featuresPackageName, submodelDeprecationNotice)
         }
     }
 
@@ -911,11 +914,11 @@ object ClassGenerator {
         }
     }
 
-    private fun generateFeaturesClassFromFeatures(className: String, properties: List<Pair<PropertySpec, String>>,
+    private fun generateFeaturesClassFromFeatures(className: String, properties: List<Triple<PropertySpec, String, DeprecationNotice?>>,
                                                   packageName: String, originalName: String? = null) {
         val featureDslFunsSpecs = properties.map {
             val propClassName = it.first.type as ClassName
-            dslGenerator.generateFeatureDslFunSpec(propClassName.simpleName, propClassName.packageName)
+            dslGenerator.generateFeatureDslFunSpec(propClassName.simpleName, propClassName.packageName, deprecationNotice = it.third)
         }
 
         val typeSpecBuilder = TypeSpec.classBuilder(className)
@@ -947,6 +950,9 @@ object ClassGenerator {
                     if (!hasJacksonAnnotation(it.first)) {
                         builder.addAnnotation(buildJsonPropertyAnnotationSpec(it.second))
                     }
+                    if (it.third?.deprecated == true) {
+                        builder.addAnnotation(buildDeprecatedAnnotationSpec(it.third!!))
+                    }
                     builder
                         .setter(provideExplicitSettoNullSetter(it.first))
                         .mutable(true)
@@ -972,7 +978,8 @@ object ClassGenerator {
         featureClassName: String,
         packageName: String,
         wotProperties: Properties?,
-        wotActions: Actions?
+        wotActions: Actions?,
+        submodelDeprecationNotice: DeprecationNotice? = null
     ) {
         val featurePropertiesClassName = featureClassName + "Properties"
         val featureClass = ClassName(packageName, featureClassName)
@@ -1005,6 +1012,10 @@ object ClassGenerator {
             .addSuperclassConstructorParameter("FEATURE_NAME")
             .addType(companionObject)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
+
+        if (submodelDeprecationNotice?.deprecated == true) {
+            typeSpecBuilder.addAnnotation(buildDeprecatedAnnotationSpec(submodelDeprecationNotice))
+        }
 
         if (featurePropertiesClass == NOTHING) {
             typeSpecBuilder.addAnnotation(

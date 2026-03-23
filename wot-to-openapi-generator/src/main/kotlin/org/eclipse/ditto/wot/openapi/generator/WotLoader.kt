@@ -130,10 +130,12 @@ object WotLoader {
 
         runBlocking {
             val featureModels = getSubModels(links)
-            openAPI.schema("features", featureSchemaResolver.resolveCompleteFeaturesSchema(featureModels, openAPI))
+            openAPI.schema("features", featureSchemaResolver.resolveCompleteFeaturesSchema(
+                featureModels.map { it.first to it.second }, openAPI))
             featureModels.forEach {
                 val featureName = it.first
                 val featureModel = it.second
+                val deprecationNotice = it.third
                 val featureTitle = featureModel.title.getOrNull()?.toString() ?: featureName
                 val tag = Tag()
                     .name("Feature: $featureTitle")
@@ -150,8 +152,8 @@ object WotLoader {
                     }
                 }
                 generator.generateFeatureOpenApi(featureName, featureModel, openAPI)
-                generator.generateFeaturePaths(featureName, featureModel, paths, openAPI)
-                generator.generateFeatureActionsPaths(featureName, featureModel, paths, openAPI)
+                generator.generateFeaturePaths(featureName, featureModel, paths, openAPI, deprecationNotice)
+                generator.generateFeatureActionsPaths(featureName, featureModel, paths, openAPI, deprecationNotice)
             }
         }
 
@@ -242,15 +244,16 @@ object WotLoader {
      */
     suspend fun getSubModels(
         links: Iterable<BaseLink<*>>
-    ): List<Pair<String, ThingModel>> {
+    ): List<Triple<String, ThingModel, Utils.DeprecationNotice?>> {
         return links.filter { isSubmodel(it) }.map {
             val instanceName = it.toJson().getValue("instanceName").getOrNull()?.asString()!!
             val submodel = loadModelFromUrl(it.href.toString())
+            val deprecationNotice = Utils.extractDeprecationNotice(it)
 
             val submodelLinks = submodel.links.getOrNull() ?: emptyList<BaseLink<*>>()
             validateTmExtendsLinks(submodelLinks)
 
-            instanceName to submodel
+            Triple(instanceName, submodel, deprecationNotice)
         }
     }
 

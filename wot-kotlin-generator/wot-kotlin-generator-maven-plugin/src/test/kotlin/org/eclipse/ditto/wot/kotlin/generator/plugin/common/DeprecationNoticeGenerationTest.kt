@@ -118,6 +118,108 @@ class DeprecationNoticeGenerationTest {
         }
     }
 
+    @Test
+    fun `deprecated submodel link generates kotlin deprecated annotations on feature class and DSL`() = runBlocking {
+        val outputDir = Files.createTempDirectory("wot-kotlin-deprecated-submodel-test")
+        try {
+            val thingModel = ThingModel.fromJson(
+                JsonObject.of(
+                    """
+                    {
+                      "@context": [
+                        "https://www.w3.org/2022/wot/td/v1.1",
+                        {
+                          "ditto": "https://ditto.eclipseprojects.io/wot/ditto-extension#"
+                        }
+                      ],
+                      "@type": "tm:ThingModel",
+                      "title": "Deprecated Submodel Demo",
+                      "version": { "model": "1.0.0" },
+                      "properties": {
+                        "name": {
+                          "title": "Name",
+                          "type": "string"
+                        }
+                      },
+                      "links": [
+                        {
+                          "rel": "tm:submodel",
+                          "href": "https://eclipse-ditto.github.io/ditto-examples/wot/models/dimmable-colored-lamp-1.0.0.tm.jsonld",
+                          "type": "application/tm+json",
+                          "instanceName": "Spot1",
+                          "ditto:deprecationNotice": {
+                            "deprecated": true,
+                            "removalVersion": "2.0.0"
+                          }
+                        },
+                        {
+                          "rel": "tm:submodel",
+                          "href": "https://eclipse-ditto.github.io/ditto-examples/wot/models/connection-status-1.0.0.tm.jsonld",
+                          "type": "application/tm+json",
+                          "instanceName": "ConnectionStatus"
+                        }
+                      ]
+                    }
+                    """.trimIndent()
+                )
+            )
+            val outputPackage = "org.eclipse.ditto.wot.kotlin.generator.plugin.deprecatedsubmodeltest"
+            ThingModelGenerator.generate(
+                thingModel,
+                GeneratorConfiguration(
+                    thingModelUrl = "in-memory",
+                    outputPackage = outputPackage,
+                    outputDirectory = outputDir.toFile()
+                )
+            )
+
+            val packagePath = outputPackage.replace('.', '/')
+            val featuresFile = outputDir.resolve("$packagePath/features/Features.kt")
+            val spot1FeatureFile = outputDir.resolve("$packagePath/features/spot1/Spot1.kt")
+            val connectionStatusFeatureFile = outputDir.resolve("$packagePath/features/connectionstatus/ConnectionStatus.kt")
+
+            assertTrue(Files.exists(featuresFile), "Expected generated Features file at: $featuresFile")
+            assertTrue(Files.exists(spot1FeatureFile), "Expected generated Spot1 feature file at: $spot1FeatureFile")
+            assertTrue(Files.exists(connectionStatusFeatureFile), "Expected generated ConnectionStatus feature file at: $connectionStatusFeatureFile")
+
+            val featuresContent = Files.readString(featuresFile)
+            val spot1Content = Files.readString(spot1FeatureFile)
+            val connectionStatusContent = Files.readString(connectionStatusFeatureFile)
+
+            // The deprecated submodel feature class should have @Deprecated annotation
+            assertTrue(
+                spot1Content.contains("@Deprecated("),
+                "Expected Spot1 feature class to have @Deprecated annotation. Generated content:\n$spot1Content"
+            )
+            assertTrue(
+                spot1Content.contains("Will be removed in version 2.0.0."),
+                "Expected Spot1 @Deprecated annotation to contain removal version. Generated content:\n$spot1Content"
+            )
+
+            // The deprecated feature property in Features class should have @Deprecated annotation
+            assertTrue(
+                Regex("(?s)@Deprecated\\(.*2\\.0\\.0.*\\)\\s*(public\\s+)?(override\\s+)?var spot1")
+                    .containsMatchIn(featuresContent),
+                "Expected spot1 property in Features to be annotated as deprecated. Generated content:\n$featuresContent"
+            )
+
+            // The deprecated feature DSL function in Features class should have @Deprecated annotation
+            assertTrue(
+                Regex("(?s)@Deprecated\\(.*2\\.0\\.0.*\\)\\s*(public\\s+)?(suspend\\s+)?fun spot1\\(")
+                    .containsMatchIn(featuresContent),
+                "Expected spot1 DSL builder function in Features to be annotated as deprecated. Generated content:\n$featuresContent"
+            )
+
+            // The non-deprecated feature should NOT have @Deprecated annotation
+            assertTrue(
+                !connectionStatusContent.contains("@Deprecated("),
+                "Expected ConnectionStatus feature class to NOT have @Deprecated annotation. Generated content:\n$connectionStatusContent"
+            )
+        } finally {
+            deleteRecursively(outputDir)
+        }
+    }
+
     private fun deleteRecursively(path: Path) {
         if (!Files.exists(path)) return
         Files.walk(path)

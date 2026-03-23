@@ -18,6 +18,7 @@ import org.eclipse.ditto.json.JsonObject
 import org.eclipse.ditto.json.JsonPointer
 import org.eclipse.ditto.json.JsonValue
 import org.eclipse.ditto.wot.model.Action
+import org.eclipse.ditto.wot.model.BaseLink
 import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.MultipleDataSchema
 import org.eclipse.ditto.wot.model.Property
@@ -411,6 +412,13 @@ object Utils {
      */
     fun extractDeprecationNotice(action: Action): DeprecationNotice? {
         return extractDeprecationNotice(action.toJson())
+    }
+
+    /**
+     * Extracts the Ditto deprecation notice from a WoT link (e.g. a tm:submodel link).
+     */
+    fun extractDeprecationNotice(link: BaseLink<*>): DeprecationNotice? {
+        return extractDeprecationNotice(link.toJson())
     }
 
     /**

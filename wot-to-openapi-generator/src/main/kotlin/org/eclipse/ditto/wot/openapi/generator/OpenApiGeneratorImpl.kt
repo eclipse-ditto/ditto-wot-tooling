@@ -15,6 +15,7 @@ package org.eclipse.ditto.wot.openapi.generator
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.openapi.generator.Utils.DeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.features.FeatureActionsPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.features.FeatureSchemaResolver
 import org.eclipse.ditto.wot.openapi.generator.features.FeaturesPathsGenerator
@@ -105,21 +106,22 @@ object OpenApiGeneratorImpl : OpenApiGenerator {
      * @param paths The OpenAPI paths object to add generated paths to
      * @param openAPI The OpenAPI instance for schema registration
      */
-    override fun generateFeaturePaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI) {
-        featuresPathsGenerator.generateFeaturesPaths(featureName, featureModel, paths, openAPI)
+    override fun generateFeaturePaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice?) {
+        featuresPathsGenerator.generateFeaturesPaths(featureName, featureModel, paths, openAPI, submodelDeprecationNotice)
     }
 
     /**
      * Generates OpenAPI paths for feature actions operations.
      * Delegates to the FeatureActionsPathsGenerator for path generation.
-     * 
+     *
      * @param featureName The name of the feature
      * @param featureModel The WoT Thing model representing the feature
      * @param paths The OpenAPI paths object to add generated paths to
      * @param openAPI The OpenAPI instance for schema registration
+     * @param submodelDeprecationNotice Optional deprecation notice from the submodel link
      */
-    override fun generateFeatureActionsPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI) {
-        featuresActionsPathsGenerator.generateFeatureActionsPaths(featureName, featureModel, paths, openAPI)
+    override fun generateFeatureActionsPaths(featureName: String, featureModel: ThingModel, paths: Paths, openAPI: OpenAPI, submodelDeprecationNotice: DeprecationNotice?) {
+        featuresActionsPathsGenerator.generateFeatureActionsPaths(featureName, featureModel, paths, openAPI, submodelDeprecationNotice)
     }
 }
 
