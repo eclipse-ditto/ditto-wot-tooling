@@ -20,10 +20,8 @@ object ClassRegistry {
     private fun getFullyQualifiedClassName(packageName: String, simpleClassName: String) = "$packageName.$simpleClassName"
 
     /**
-     * Checks if a class with the given name exists in the package but has a *different* structure.
-     */
-    /**
-     * Checks if there is a naming conflict for a class.
+     * Checks if there is a naming conflict for a class: a class with the given name
+     * already exists in the package but has a different structure.
      *
      * @param packageName The package name
      * @param simpleClassName The simple class name
@@ -49,10 +47,15 @@ object ClassRegistry {
     }
 
     /**
-     * Registers a newly generated class using its fully qualified name.
+     * Clears all registered classes. Called at the start of each generation run
+     * to prevent stale entries from a previous model leaking into the current one.
      */
+    fun clear() {
+        registry.clear()
+    }
+
     /**
-     * Registers a generated class.
+     * Registers a generated class using its fully qualified name.
      *
      * @param packageName The package name
      * @param simpleClassName The simple class name

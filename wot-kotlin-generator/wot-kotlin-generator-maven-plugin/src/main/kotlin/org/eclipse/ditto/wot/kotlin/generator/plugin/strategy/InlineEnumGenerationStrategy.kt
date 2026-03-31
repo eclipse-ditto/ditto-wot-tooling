@@ -25,14 +25,7 @@ import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.ObjectSchema
 import org.eclipse.ditto.wot.model.SingleDataSchema
 import kotlin.jvm.optionals.getOrNull
-import com.fasterxml.jackson.annotation.JsonValue as JacksonJsonValue
 
-/**
- * Inline enum generation strategy.
- *
- * This strategy maintains the current behavior where enums are generated
- * as inline classes nested within the classes that use them.
- */
 /**
  * Strategy for generating enums inline within classes.
  *
@@ -40,6 +33,8 @@ import com.fasterxml.jackson.annotation.JsonValue as JacksonJsonValue
  * which helps reduce the number of generated files and keeps related code together.
  */
 class InlineEnumGenerationStrategy : IEnumGenerationStrategy {
+
+    override val isInline: Boolean = true
 
     private val classGenerator = ClassGenerator
 
@@ -49,7 +44,8 @@ class InlineEnumGenerationStrategy : IEnumGenerationStrategy {
         enumArray: MutableSet<JsonValue>,
         schemaType: DataSchemaType,
         packageName: String,
-        parentClassName: String?
+        parentClassName: String?,
+        tmRefUrl: String?
     ): String {
         val enumName = if (propertyName != null) {
             asClassName(propertyName)
@@ -284,7 +280,7 @@ class InlineEnumGenerationStrategy : IEnumGenerationStrategy {
             val adjustedPropertyName = asPropertyName(propertyName)
             val typeName = asPrimitiveClassName(schema)
             companionBuilder.addFunction(
-                FunSpec.builder("from${adjustedPropertyName.capitalize()}")
+                FunSpec.builder("from${adjustedPropertyName.replaceFirstChar { it.titlecase() }}")
                     .returns(enumClassName.copy(nullable = true))
                     .addParameter(adjustedPropertyName, typeName.copy(nullable = true))
                     .addCode("return INSTANCES.firstOrNull { it.$adjustedPropertyName == $adjustedPropertyName }")
@@ -340,47 +336,14 @@ class InlineEnumGenerationStrategy : IEnumGenerationStrategy {
         return enumKey
     }
 
-    private fun buildToValueFunc(valueType: TypeName): FunSpec {
-        return FunSpec.builder("toValue")
-            .addAnnotation(JacksonJsonValue::class)
-            .returns(valueType)
-            .addCode("return _value")
-            .build()
-    }
-
-    private fun buildFromValueFunc(enumClassName: ClassName, valueType: TypeName): FunSpec {
-        return FunSpec.builder("fromValue")
-            .addAnnotation(JsonCreator::class)
-            .returns(enumClassName.copy(nullable = true))
-            .addParameter("v", valueType.copy(nullable = true))
-            .addCode("return entries.firstOrNull { it._value == v }")
-            .build()
-    }
-
-    private fun buildFromNameFunc(enumClassName: ClassName): FunSpec {
-        return FunSpec.builder("fromName")
-            .returns(enumClassName.copy(nullable = true))
-            .addParameter("name", String::class.asTypeName().copy(nullable = true))
-            .addCode("return entries.firstOrNull { it.name == name }")
-            .build()
-    }
+    private fun buildToValueFunc(valueType: TypeName) = EnumBuilderHelper.buildToValueFunc(valueType)
+    private fun buildFromValueFunc(enumClassName: ClassName, valueType: TypeName) = EnumBuilderHelper.buildFromValueFunc(enumClassName, valueType)
+    private fun buildFromNameFunc(enumClassName: ClassName) = EnumBuilderHelper.buildFromNameFunc(enumClassName)
 
     private fun addCustomEnumConstants(
         enumSpecBuilder: TypeSpec.Builder,
         enumName: String,
         enumValues: List<Any>,
         valueType: TypeName
-    ) {
-        enumValues.forEach {
-            enumSpecBuilder.addEnumConstant(
-                asValidEnumConstant(it.toString()),
-                TypeSpec.anonymousClassBuilder()
-                    .addSuperclassConstructorParameter(
-                        if (valueType == STRING) "%S" else "%L",
-                        it
-                    )
-                    .build()
-            )
-        }
-    }
+    ) = EnumBuilderHelper.addCustomEnumConstants(enumSpecBuilder, enumName, enumValues, valueType, useSeparateClassNaming = false)
 }

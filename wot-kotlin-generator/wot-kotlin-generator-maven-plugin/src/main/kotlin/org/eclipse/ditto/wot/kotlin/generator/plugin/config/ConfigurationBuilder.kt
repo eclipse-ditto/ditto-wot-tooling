@@ -28,15 +28,18 @@ class ConfigurationBuilder {
     private var outputPackage: String? = null
     private var outputDirectory: File? = null
 
-    // Enum generation strategy
+    // Strategy parameters
     private var enumGenerationStrategy: EnumGenerationStrategy = EnumGenerationStrategy.INLINE
+    private var classNamingStrategy: ClassNamingStrategy = ClassNamingStrategy.COMPOUND_ALL
 
-    // Backward compatibility parameters
+    // Generation flags
     private var generateDsl: Boolean = true
+    private var generateSuspendDsl: Boolean = false
     private var generateEnums: Boolean = true
     private var generateInterfaces: Boolean = true
     private var submodelOnly: Boolean = false
     private var featureName: String? = null
+    private var deduplicateReferencedTypes: Boolean = false
 
     /**
      * Sets the URL or path to the WoT Thing Model to process.
@@ -75,6 +78,22 @@ class ConfigurationBuilder {
      */
     fun enumGenerationStrategy(strategy: EnumGenerationStrategy): ConfigurationBuilder {
         this.enumGenerationStrategy = strategy
+        return this
+    }
+
+    /**
+     * Sets the strategy for naming generated classes.
+     */
+    fun classNamingStrategy(strategy: ClassNamingStrategy): ConfigurationBuilder {
+        this.classNamingStrategy = strategy
+        return this
+    }
+
+    /**
+     * Sets whether DSL builder functions should be suspend functions.
+     */
+    fun generateSuspendDsl(generate: Boolean): ConfigurationBuilder {
+        this.generateSuspendDsl = generate
         return this
     }
 
@@ -135,6 +154,16 @@ class ConfigurationBuilder {
     }
 
     /**
+     * Enables deduplication of referenced types.
+     * When enabled, types from the same tm:ref are generated once.
+     * The first encounter determines the name and package; subsequent uses reuse it.
+     */
+    fun deduplicateReferencedTypes(enabled: Boolean): ConfigurationBuilder {
+        this.deduplicateReferencedTypes = enabled
+        return this
+    }
+
+    /**
      * Applies a minimal configuration suitable for simple code generation.
      */
     fun minimal(): ConfigurationBuilder {
@@ -182,11 +211,14 @@ class ConfigurationBuilder {
             outputPackage = outputPackage!!,
             outputDirectory = outputDirectory!!,
             enumGenerationStrategy = enumGenerationStrategy,
+            classNamingStrategy = classNamingStrategy,
             generateDsl = generateDsl,
+            generateSuspendDsl = generateSuspendDsl,
             generateEnums = generateEnums,
             generateInterfaces = generateInterfaces,
             submodelOnly = submodelOnly,
-            featureName = featureName
+            featureName = featureName,
+            deduplicateReferencedTypes = deduplicateReferencedTypes
         )
     }
 

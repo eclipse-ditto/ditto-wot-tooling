@@ -106,6 +106,12 @@ class WotKotlinCodegenMojo: AbstractMojo() {
     @Parameter(property = "featureName")
     var featureName: String? = null
 
+    /**
+     * When true, types from the same tm:ref URL are generated only once.
+     * The first encounter determines the name and package; subsequent uses reuse it.
+     */
+    @Parameter(property = "deduplicateReferencedTypes", defaultValue = "false")
+    var deduplicateReferencedTypes: Boolean = false
 
     /**
      * Main execution method called by Maven during the build lifecycle.
@@ -134,27 +140,22 @@ class WotKotlinCodegenMojo: AbstractMojo() {
         try {
             // Create configuration with new parameters
             val config = createConfiguration(thingModelUrl!!, packageN, output)
-            log.info("---> Using enum generation strategy: ${config.enumGenerationStrategy}")
-            log.info("---> Using class naming strategy: ${config.classNamingStrategy}")
-            log.info("---> Generate DSL: ${config.generateDsl}")
-            log.info("---> Generate Suspend DSL: ${config.generateSuspendDsl}")
-            log.info("---> Generate Enums: ${config.generateEnums}")
-            log.info("---> Generate Interfaces: ${config.generateInterfaces}")
-            log.info("---> Submodel only: ${config.submodelOnly}")
-            log.info("---> Feature name: ${config.featureName ?: "<derived from model title>"}")
+            log.debug("---> Using enum generation strategy: ${config.enumGenerationStrategy}")
+            log.debug("---> Using class naming strategy: ${config.classNamingStrategy}")
+            log.debug("---> Generate DSL: ${config.generateDsl}")
+            log.debug("---> Generate Suspend DSL: ${config.generateSuspendDsl}")
+            log.debug("---> Generate Enums: ${config.generateEnums}")
+            log.debug("---> Generate Interfaces: ${config.generateInterfaces}")
+            log.debug("---> Submodel only: ${config.submodelOnly}")
+            log.debug("---> Feature name: ${config.featureName ?: "<derived from model title>"}")
+            log.debug("---> Deduplicate referenced types: ${config.deduplicateReferencedTypes}")
 
             runBlocking {
                 GeneratorStarter.run(config)
             }
-            log.info("---> Adding path to compile source root: ${output.path}")
+            log.debug("---> Adding path to compile source root: ${output.path}")
             project!!.addCompileSourceRoot(output.path)
 
-            // Add common model directory to compile source roots
-            val commonModelDir = File(output.parent, "common-model")
-            if (commonModelDir.exists()) {
-                log.info("---> Adding common model path to compile source root: ${commonModelDir.path}")
-                project!!.addCompileSourceRoot(commonModelDir.path)
-            }
         } catch (e: Exception) {
             throw MojoExecutionException("Exception during generation", e)
         }
@@ -216,7 +217,8 @@ class WotKotlinCodegenMojo: AbstractMojo() {
             generateEnums = generateEnums,
             generateInterfaces = generateInterfaces,
             submodelOnly = submodelOnly,
-            featureName = featureName
+            featureName = featureName,
+            deduplicateReferencedTypes = deduplicateReferencedTypes
         )
     }
 }

@@ -23,6 +23,7 @@ import org.eclipse.ditto.wot.kotlin.generator.plugin.dsl.DslGenerator
 import org.eclipse.ditto.wot.kotlin.generator.plugin.link.LinkRelationType
 import org.eclipse.ditto.wot.kotlin.generator.plugin.property.PropertyResolver
 import org.eclipse.ditto.wot.kotlin.generator.plugin.property.PropertyRole
+import org.eclipse.ditto.wot.kotlin.generator.plugin.property.TmRefScanner
 import org.eclipse.ditto.wot.kotlin.generator.plugin.property.ReferencePropertyResolver
 import org.eclipse.ditto.wot.kotlin.generator.plugin.property.SchemaTypeResolver
 import org.eclipse.ditto.wot.kotlin.generator.plugin.strategy.EnumGenerationStrategyFactory
@@ -95,7 +96,7 @@ object ClassGenerator {
     fun setEnumGenerationStrategy(config: GeneratorConfiguration) {
         val strategy = EnumGenerationStrategyFactory.createStrategy(config)
         enumGenerationStrategy = strategy
-        logger.info("Set enum generation strategy: ${config.enumGenerationStrategy}")
+        logger.debug("Set enum generation strategy: ${config.enumGenerationStrategy}")
 
         this.config = config
         dslGenerator.setConfiguration(config)
@@ -219,7 +220,7 @@ object ClassGenerator {
         originalName: String? = null,
         defaultConstants: List<PropertySpec> = emptyList()
     ) {
-        logger.debug("Generating class $className in package $packageName ...")
+        logger.debug("Generating class $className in package $packageName")
         val isPropertiesClass = typeSpec.superinterfaces.keys.any {
             (it as? ParameterizedTypeName)?.rawType == ClassName(Const.COMMON_PACKAGE_FEATURES, "Properties")
         }
@@ -354,10 +355,10 @@ object ClassGenerator {
             .addImport(Const.COMMON_PACKAGE_PATH, "HasPath")
 
         val superclass = typeSpecBuilder.build().superclass
-        logger.info("Class $className - superclass: $superclass")
+        logger.debug("Class $className - superclass: $superclass")
         if (superclass is ParameterizedTypeName && superclass.rawType.simpleName == "MapObjectProperty") {
             fileSpecBuilder.addImport(Const.COMMON_PACKAGE_FEATURES, "MapObjectProperty")
-            logger.info("Class $className - added MapObjectProperty import")
+            logger.debug("Class $className - added MapObjectProperty import")
         }
 
         funSpecs.forEach { fileSpecBuilder.addFunction(it) }
@@ -382,7 +383,7 @@ object ClassGenerator {
      * @param packageName The package for the type alias
      */
     fun generatePrimitiveTypeAlias(primitiveType: TypeName, className: String, packageName: String) {
-        logger.debug("Class $className will be typealias to primitive $primitiveType.")
+        logger.debug("Class $className will be typealias to primitive $primitiveType")
         val typeAliasSpec = TypeAliasSpec.builder(className, primitiveType).build()
         val file = FileSpec.builder(packageName, className).addTypeAlias(typeAliasSpec).build()
         file.writeTo(Path(outputDir))
@@ -419,7 +420,7 @@ object ClassGenerator {
      * @throws IllegalArgumentException if the enum already exists with different values or as a file from a previous generation
      */
     fun checkForEnumConflict(packageName: String, enumName: String, enumValues: Set<String>) {
-        val existingEnum = EnumRegistry.getEnumByName(enumName)
+        val existingEnum = EnumRegistry.getEnumByNameInPackage(enumName, packageName)
         if (existingEnum != null) {
             val existingValues = extractEnumValues(existingEnum)
             if (existingValues != enumValues) {
@@ -427,7 +428,7 @@ object ClassGenerator {
             }
             return
         }
-        
+
         val enumFilePath = Paths.get(outputDir, packageName.replace(".", "/"), "$enumName.kt")
         if (Files.exists(enumFilePath)) {
             throw IllegalArgumentException(
@@ -494,38 +495,113 @@ object ClassGenerator {
         asObjectProperty: Boolean = false,
         feature: String? = null,
         parentClassName: String? = null,
-        dittoCategory: String? = null
+        dittoCategory: String? = null,
+        tmRefUrl: String? = null
     ): TypeName {
-        val simpleClassName = if (config != null) {
-            asClassNameWithStrategy(name, parentClassName, config!!.classNamingStrategy, emptySet())
-        } else {
-            asClassName(name)
-        }
         val schemaJson = objectSchema.toJson()
+
+        val schemaFingerprint = if (config?.deduplicateReferencedTypes == true) {
+            TmRefScanner.computeFingerprint(objectSchema.toJson())
+        } else null
+
+        // When dedup is enabled and the schema comes from a tm:ref that is referenced by
+        // multiple properties, use the canonical title from the tm:ref target instead of the
+        // property name. This produces a more meaningful shared class name when multiple
+        // properties reference the same tm:ref type definition.
+        // Single-reference tm:refs keep the property name since there's no ambiguity.
+        // Falls back to the property name if:
+        // - The title produces the same class name as the property name (no benefit)
+        // - Another tm:ref already claimed this title globally (i.e., two distinct
+        //   tm:refs resolve to the same class name)
+        val effectiveName = if (config?.deduplicateReferencedTypes == true) {
+            val effectiveRefUrl = tmRefUrl
+                ?: schemaFingerprint?.let { SharedTypeRegistry.findRefUrlByFingerprint(it) }
+            if (effectiveRefUrl != null && SharedTypeRegistry.getRefCount(effectiveRefUrl) > 1) {
+                val refTitle = SharedTypeRegistry.findRefTitle(effectiveRefUrl)
+                if (refTitle != null) {
+                    val titleClassName = asClassName(refTitle)
+                    val nameClassName = asClassName(name)
+                    when {
+                        // No benefit if title produces the same class name
+                        titleClassName == nameClassName -> name
+                        // Title conflicts with another tm:ref's title (two distinct
+                        // tm:refs would produce the same class name)
+                        SharedTypeRegistry.hasConflictingTitle(effectiveRefUrl) -> name
+                        else -> refTitle
+                    }
+                } else name
+            } else {
+                name
+            }
+        } else {
+            name
+        }
+
+        val simpleClassName = if (config != null) {
+            asClassNameWithStrategy(effectiveName, parentClassName, config!!.classNamingStrategy, emptySet())
+        } else {
+            asClassName(effectiveName)
+        }
+
+        if (config?.deduplicateReferencedTypes == true) {
+            val effectiveRefUrl = tmRefUrl
+                ?: SharedTypeRegistry.findRefUrlByFingerprint(schemaFingerprint!!)
+
+            if (effectiveRefUrl != null) {
+                val existingByRef = SharedTypeRegistry.findClassByRef(effectiveRefUrl)
+                if (existingByRef != null) {
+                    logger.debug("Dedup: Reusing class {} for '{}' via tm:ref {}", existingByRef.canonicalName, name, effectiveRefUrl)
+                    return existingByRef.copy(nullable = true)
+                }
+            }
+            val resolvedForCheck = referencePropertyResolver.resolveReferenceProperties(objectSchema)
+            val existing = SharedTypeRegistry.findExistingClass(resolvedForCheck.toJson())
+            if (existing != null) {
+                logger.debug("Dedup: Reusing class {} for '{}' (schema match)", existing.canonicalName, name)
+                return existing.copy(nullable = true)
+            }
+        }
 
         if (ClassRegistry.hasConflict(packageName, simpleClassName, schemaJson)) {
             val prefix = parentClassName?.let { asClassName(it) } ?: feature ?: "Shared"
             val conflictResolvedClassName = "${prefix}${asClassName(name)}"
-            logger.warn("Class name conflict for '${asClassName(name)}' in package '$packageName'. Using new name '$conflictResolvedClassName'")
-            val finalClassName = conflictResolvedClassName
-            val resolvedObjectSchema = referencePropertyResolver.resolveReferenceProperties(objectSchema)
-            logger.info("Generating class $finalClassName - asObjectProperty: $asObjectProperty - feature: $feature")
+            logger.debug("Class name conflict for '${asClassName(name)}' in package '$packageName'. Using compound name '$conflictResolvedClassName'")
+            val (resolvedObjectSchema, nestedRefMap) = referencePropertyResolver.resolveWithRefTracking(objectSchema)
+            logger.debug("Generating conflict-resolved class $conflictResolvedClassName")
             if (asObjectProperty && feature != null) {
                 generateFeaturePropertyWrapperClass(resolvedObjectSchema, name, packageName, feature, role, dittoCategory)
             } else {
-                generateClassFromObjectSchema(name, resolvedObjectSchema, packageName, role, parentClassName)
+                // Pass the conflict-resolved name directly with null parentClassName
+                // to prevent the inner method from re-applying its own conflict resolution
+                generateClassFromObjectSchema(conflictResolvedClassName, resolvedObjectSchema, packageName, role, null, nestedRefMap, pathName = name)
             }
-            return ClassName(packageName, finalClassName).copy(nullable = true)
+            val generatedClassName = ClassName(packageName, conflictResolvedClassName)
+            if (config?.deduplicateReferencedTypes == true) {
+                SharedTypeRegistry.registerClass(resolvedObjectSchema.toJson(), generatedClassName)
+                if (tmRefUrl != null) {
+                    SharedTypeRegistry.registerClassByRef(tmRefUrl, generatedClassName)
+                }
+            }
+            return generatedClassName.copy(nullable = true)
         }
 
-        val resolvedObjectSchema = referencePropertyResolver.resolveReferenceProperties(objectSchema)
-        logger.info("Generating class $simpleClassName - asObjectProperty: $asObjectProperty - feature: $feature")
+        val (resolvedObjectSchema, nestedRefMap) = referencePropertyResolver.resolveWithRefTracking(objectSchema)
+        logger.info("Generating class $simpleClassName")
         if (asObjectProperty && feature != null) {
             generateFeaturePropertyWrapperClass(resolvedObjectSchema, name, packageName, feature, role, dittoCategory)
         } else {
-            generateClassFromObjectSchema(name, resolvedObjectSchema, packageName, role, parentClassName)
+            generateClassFromObjectSchema(effectiveName, resolvedObjectSchema, packageName, role, parentClassName, nestedRefMap, pathName = name)
         }
-        return ClassName(packageName, simpleClassName).copy(nullable = true)
+        val generatedClassName = ClassName(packageName, simpleClassName)
+        if (config?.deduplicateReferencedTypes == true) {
+            SharedTypeRegistry.registerClass(resolvedObjectSchema.toJson(), generatedClassName)
+            val effectiveRefUrl = tmRefUrl
+                ?: schemaFingerprint?.let { SharedTypeRegistry.findRefUrlByFingerprint(it) }
+            if (effectiveRefUrl != null) {
+                SharedTypeRegistry.registerClassByRef(effectiveRefUrl, generatedClassName)
+            }
+        }
+        return generatedClassName.copy(nullable = true)
     }
 
     /**
@@ -597,7 +673,9 @@ object ClassGenerator {
         objectSchema: ObjectSchema,
         packageName: String,
         role: PropertyRole,
-        parentClassName: String? = null
+        parentClassName: String? = null,
+        tmRefMap: Map<JsonPointer, String>? = null,
+        pathName: String? = null
     ) {
         var className = if (config != null) {
             asClassNameWithStrategy(propertyName, parentClassName, config!!.classNamingStrategy, emptySet())
@@ -619,12 +697,12 @@ object ClassGenerator {
             } else {
                 className = "Shared${asClassName(propertyName)}"
             }
-            logger.warn("Class name conflict for '${asClassName(propertyName)}' in package '$packageName'. Using new name '$className'")
+            logger.debug("Class name conflict for '${asClassName(propertyName)}' in package '$packageName'. Using compound name '$className'")
         }
         ClassRegistry.registerGeneratedClass(packageName, className, schemaToUse)
 
         val isMapLike = targetObjectSchema.isPatternPropertiesSchema() || targetObjectSchema.isAdditionalPropertiesSchema()
-        logger.info("Class $className - isMapLike: $isMapLike, schema: ${targetObjectSchema.toJson()}")
+        if (isMapLike) logger.debug("Class $className is map-like (patternProperties or additionalProperties)")
         val superClass = if (isMapLike) {
             val singleItemName = "${propertyName}Item"
             val singleItemNameAsClass = asClassName(singleItemName)
@@ -682,14 +760,14 @@ object ClassGenerator {
             for (entry in propertiesJson) {
                 val key = entry.key.toString()
                 val value = entry.value
-                logger.info("Property for $className: $key -> $value")
                 schemaMap[key] = SingleDataSchema.fromJson(value.asObject())
             }
             propertyResolver.convertFieldsToPropertySpecs(
                 schemaMap,
                 packageName,
                 role,
-                className
+                className,
+                tmRefMap
             )
         } else {
             emptyList()
@@ -728,7 +806,7 @@ object ClassGenerator {
                     extractDeprecationNotice(targetObjectSchema)
                 )
             ),
-            originalName = propertyName,
+            originalName = pathName ?: propertyName,
             defaultConstants = defaultValueExtractor.extractDefaultConstants(
                 schemaMap, packageName, updatedFields.associate { it.first to it.second.type }
             )
@@ -742,17 +820,14 @@ object ClassGenerator {
         val fields = propertyResolver.convertFieldsToPropertySpecs(objectSchema.properties, packageName, role, propertyName)
             .toMutableList()
         if (objectSchema.isPatternPropertiesSchema()) {
-            logger.debug("Found object schema with patternProperties: ${objectSchema.toJson()}")
             generatePatternPropertiesClass(propertyName, objectSchema, packageName, role)
         }
 
         if (objectSchema.isAdditionalPropertiesSchema()) {
-            logger.debug("Found object schema with additionalProperties: ${objectSchema.toJson()}")
             generateAdditionalPropertiesClass(propertyName, objectSchema, packageName, role)
         }
 
         if (objectSchemaJson.getValue(JsonPointer.of("oneOf")).isEmpty.not()) {
-            logger.debug("Found object schema with oneOf properties: ${objectSchema.toJson()}")
             fields += propertyResolver.resolveOneOfProperties(objectSchema, packageName, role)
         }
 
@@ -764,25 +839,11 @@ object ClassGenerator {
         typeSpecBuilder: TypeSpec.Builder,
         packageName: String
     ): List<Pair<String, PropertySpec>> {
-        logger.info("addInlineEnumsToTypeSpec called with enumGenerationStrategy: ${enumGenerationStrategy?.javaClass?.simpleName ?: "null"}")
-
-        val shouldAddInline = when {
-            enumGenerationStrategy != null -> {
-                when (enumGenerationStrategy!!::class.simpleName) {
-                    "InlineEnumGenerationStrategy" -> true
-                    "SeparateClassEnumGenerationStrategy" -> false
-                    else -> true // Default to inline for backward compatibility
-                }
-            }
-            else -> true // Default to inline for backward compatibility
-        }
+        val shouldAddInline = enumGenerationStrategy?.isInline != false
 
         if (!shouldAddInline) {
-            logger.info("Using separate class enum strategy - not adding enums inline")
             return fields
         }
-
-        logger.info("Using inline enum strategy - adding enums to class")
         val addedEnumNames = mutableSetOf<String>()
 
         val updatedFields = fields.map { field ->
@@ -793,7 +854,7 @@ object ClassGenerator {
                 parameterizedTypeName.typeArguments.forEach { typeArg ->
                     val className = typeArg as? ClassName
                     if (className != null) {
-                        val enumSpec = EnumRegistry.getEnumByName(className.simpleName)
+                        val enumSpec = EnumRegistry.getInlineEnumByName(className.simpleName)
                         if (enumSpec != null && addedEnumNames.add(enumSpec.name!!)) {
                             val hasExistingType = ClassRegistry.hasClass(packageName, className.simpleName) ||
                                                 typeSpecBuilder.build().typeSpecs.any { it.name == className.simpleName }
@@ -821,7 +882,7 @@ object ClassGenerator {
 
             val typeClass = currentField.type as? ClassName
             if (typeClass != null) {
-                val enumSpec = EnumRegistry.getEnumByName(typeClass.simpleName)
+                val enumSpec = EnumRegistry.getInlineEnumByName(typeClass.simpleName)
                 if (enumSpec != null && addedEnumNames.add(enumSpec.name!!)) {
                     val hasExistingType = ClassRegistry.hasClass(packageName, typeClass.simpleName) ||
                                         typeSpecBuilder.build().typeSpecs.any { it.name == typeClass.simpleName }
@@ -837,10 +898,6 @@ object ClassGenerator {
             }
 
             field.first to currentField
-        }
-
-        if (updatedFields != fields) {
-            logger.info("Updated fields with inline enums: ${updatedFields.size} fields")
         }
 
         return updatedFields
@@ -872,7 +929,7 @@ object ClassGenerator {
         objectSchema.toJson()
             .getValue(JsonPointer.of("additionalProperties"))
             .getOrNull()?.takeIf { it.isObject }?.asObject()?.let { additionalProperties ->
-                val title = objectSchema.title.get().toString()
+                val title = objectSchema.title.getOrNull()?.toString() ?: propertyName
 
                 val propertyNameSingular = "${propertyName ?: title}Item"
                 generateClassFromObjectSchema(
@@ -894,17 +951,13 @@ object ClassGenerator {
     ): TypeName {
         val propertyItemName = "${propertyName ?: title}Item"
         val patternPropertyClassName = asClassName(propertyItemName)
-        logger.info("[GEN] generateClassFromPatternProperties: propertyItemName=$propertyItemName, packageName=$packageName")
-        logger.debug("patternProperties: $patternProperties")
         patternProperties.keys.firstOrNull()?.let {
             val patternProperty = patternProperties.getField(it).getOrNull()
             if (patternProperty?.value is JsonObject) {
                 val patternPropertyObject = referencePropertyResolver.resolveReferenceProperties(
                     ObjectSchema.fromJson(patternProperty.value as JsonObject)
                 )
-                logger.info("[GEN] Calling generateClassFromObjectSchema for $propertyItemName in $packageName")
                 generateClassFromObjectSchema(propertyItemName, patternPropertyObject, packageName, role, propertyName)
-                logger.info("[GEN] Finished generateClassFromObjectSchema for $propertyItemName in $packageName")
                 return ClassName(packageName, patternPropertyClassName)
             } else {
                 throw IllegalArgumentException("Pattern property is not Object: $patternProperties")
@@ -1220,7 +1273,7 @@ object ClassGenerator {
         packageName: String,
         typeSpecBuilder: TypeSpec.Builder
     ): TypeName {
-        val itemSchema = arraySchema.items.getOrNull()!! as SingleDataSchema
+        val itemSchema = arraySchema.items.get() as SingleDataSchema
         val itemEnumArray = itemSchema.enum
         val itemHasEnum = itemEnumArray?.isNotEmpty() == true
 
@@ -1268,7 +1321,7 @@ object ClassGenerator {
             val enumKey = enumGenerationStrategy!!.generateEnum(
                 schema, propertyName, enumArray, schemaType, packageName, parentClassName
             )
-            val isInlineStrategy = enumGenerationStrategy!!.javaClass.simpleName == "InlineEnumGenerationStrategy"
+            val isInlineStrategy = enumGenerationStrategy!!.isInline
             if (isInlineStrategy) {
                 val enumSpec = EnumRegistry.getEnum(enumKey)
                 if (enumSpec != null) {
@@ -1276,7 +1329,16 @@ object ClassGenerator {
                 }
                 ClassName("", enumKey)
             } else {
-                ClassName(packageName, enumKey)
+                // For SEPARATE_CLASS with dedup, the enum may have been generated in a
+                // different package. Look it up in SharedTypeRegistry to get the correct ClassName.
+                val config = getConfig()
+                if (config?.deduplicateReferencedTypes == true) {
+                    SharedTypeRegistry.findExistingEnumByNameInPackage(enumKey, packageName)
+                        ?: SharedTypeRegistry.findExistingEnumByName(enumKey)
+                        ?: ClassName(packageName, enumKey)
+                } else {
+                    ClassName(packageName, enumKey)
+                }
             }
         } else {
             val enumKey = enumGenerator.generateEnum(

@@ -14,6 +14,7 @@ package org.eclipse.ditto.wot.kotlin.generator.plugin
 
 import kotlinx.coroutines.runBlocking
 import org.eclipse.ditto.wot.kotlin.generator.plugin.config.GeneratorConfiguration
+import org.eclipse.ditto.wot.kotlin.generator.plugin.property.TmRefScanner
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
@@ -32,7 +33,7 @@ import kotlin.system.exitProcess
 object GeneratorStarter {
 
     private val thingModelGenerator = ThingModelGenerator
-    private val logger = LoggerFactory.getLogger(ThingModelGenerator::class.java)
+    private val logger = LoggerFactory.getLogger(GeneratorStarter::class.java)
 
     /**
      * Runs the generator with command-line arguments.
@@ -64,7 +65,7 @@ object GeneratorStarter {
             return 1
         }
 
-        logger.info("-----> Starting generator with args: $modelUrl, $packageName, $outputDir")
+        logger.debug("Starting generator with args: $modelUrl, $packageName, $outputDir")
 
         // Create default configuration for backward compatibility
         val defaultConfig = GeneratorConfiguration(
@@ -90,9 +91,18 @@ object GeneratorStarter {
      */
     @Throws(Exception::class)
     fun run(config: GeneratorConfiguration): Int {
-        logger.info("-----> Starting generator with configuration: ${config.enumGenerationStrategy}")
+        logger.info("Starting generator with strategy: ${config.enumGenerationStrategy}, dedup: ${config.deduplicateReferencedTypes}")
         return try {
             runBlocking {
+                if (config.deduplicateReferencedTypes) {
+                    try {
+                        logger.info("Pre-scanning tm:ref URLs from ${config.thingModelUrl}")
+                        TmRefScanner.scan(config.thingModelUrl)
+                        logger.info("Pre-scan complete")
+                    } catch (e: Exception) {
+                        logger.warn("tm:ref pre-scan failed (dedup will fall back to schema comparison): ${e.message}")
+                    }
+                }
                 val thingModel = thingModelGenerator.loadModel(config.thingModelUrl)
                 thingModelGenerator.generate(thingModel, config)
             }
