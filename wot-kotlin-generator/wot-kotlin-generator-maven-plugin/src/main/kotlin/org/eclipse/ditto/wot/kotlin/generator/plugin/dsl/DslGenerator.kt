@@ -162,12 +162,12 @@ object DslGenerator {
             } else {
                 val itemName = "${prop.title.getOrNull()?.let { title -> asPropertyName(title.toString()) } ?:  property}Item"
                 // Use the actual class name from the itemType instead of generating it
-                val itemAsClass = when (itemType) {
-                    is ClassName -> itemType.simpleName
-                    is ParameterizedTypeName -> (itemType.rawType as? ClassName)?.simpleName ?: asClassName(itemName)
-                    else -> asClassName(itemName)
+                val itemsPropertyClass = when (itemType) {
+                    is ClassName -> itemType
+                    is ParameterizedTypeName -> (itemType.rawType as? ClassName) ?: ClassName(propertyPackage, asClassName(itemName))
+                    else -> ClassName(propertyPackage, asClassName(itemName))
                 }
-                val itemsPropertyClass = ClassName(propertyPackage, itemAsClass)
+                val itemAsClass = itemsPropertyClass.simpleName
                 val funSpecBuilder = FunSpec.builder(itemName)
                     .returns(itemsPropertyClass)
 

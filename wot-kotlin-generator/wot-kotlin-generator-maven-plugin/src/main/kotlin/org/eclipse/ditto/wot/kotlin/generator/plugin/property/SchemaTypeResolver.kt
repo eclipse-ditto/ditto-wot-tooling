@@ -59,21 +59,13 @@ object SchemaTypeResolver {
      * @param parentClassName Optional parent class name for nested schemas
      * @return A Kotlin type name representing the schema
      */
-    /**
-     * Resolves the Kotlin type for a schema.
-     *
-     * @param schema The schema to resolve
-     * @param packageName The package for the type
-     * @param role The role of the property
-     * @param fallbackTitle The fallback title for the type
-     * @return The resolved Kotlin type name
-     */
     fun resolveSchemaType(
         dataSchema: SingleDataSchema,
         packageName: String,
         role: PropertyRole,
         fieldName: String? = null,
-        parentClassName: String? = null
+        parentClassName: String? = null,
+        tmRefUrl: String? = null
     ): TypeName {
         val schemaTitle = selectSchemaName(dataSchema.title.getOrNull()?.toString(), fieldName)
         return when (dataSchema.type.get()) {
@@ -84,7 +76,8 @@ object SchemaTypeResolver {
                 packageName,
                 DataSchemaType.INTEGER,
                 role,
-                parentClassName = parentClassName
+                parentClassName = parentClassName,
+                tmRefUrl = tmRefUrl
             )
             DataSchemaType.NUMBER -> wrapperTypeChecker.checkForWrapperType(
                 dataSchema,
@@ -92,7 +85,8 @@ object SchemaTypeResolver {
                 packageName,
                 DataSchemaType.NUMBER,
                 role,
-                parentClassName = parentClassName
+                parentClassName = parentClassName,
+                tmRefUrl = tmRefUrl
             )
             DataSchemaType.STRING -> wrapperTypeChecker.checkForWrapperType(
                 dataSchema,
@@ -100,7 +94,8 @@ object SchemaTypeResolver {
                 packageName,
                 DataSchemaType.STRING,
                 role,
-                parentClassName = parentClassName
+                parentClassName = parentClassName,
+                tmRefUrl = tmRefUrl
             )
             DataSchemaType.OBJECT -> {
                 if ((dataSchema as ObjectSchema).enum.isNotEmpty()) {
@@ -110,7 +105,8 @@ object SchemaTypeResolver {
                         packageName,
                         DataSchemaType.OBJECT,
                         role,
-                        parentClassName = parentClassName
+                        parentClassName = parentClassName,
+                        tmRefUrl = tmRefUrl
                     )
                 }else{
                     classGenerator.generateClassFrom(
@@ -118,13 +114,14 @@ object SchemaTypeResolver {
                         dataSchema,
                         packageName,
                         role,
-                        parentClassName = parentClassName
+                        parentClassName = parentClassName,
+                        tmRefUrl = tmRefUrl
                     )
                 }
 
             }
 
-            DataSchemaType.ARRAY -> resolveArraySchemaType(dataSchema as ArraySchema, packageName, role, schemaTitle!!)
+            DataSchemaType.ARRAY -> resolveArraySchemaType(dataSchema as ArraySchema, packageName, role, schemaTitle!!, tmRefUrl)
             DataSchemaType.NULL -> UNIT.copy(nullable = true)
         }
     }
@@ -144,25 +141,15 @@ object SchemaTypeResolver {
      * @param fallbackTitle Fallback title for naming
      * @return A Kotlin type name representing List<T>
      */
-    /**
-     * Resolves the Kotlin type for an array schema.
-     *
-     * @param arraySchema The array schema to resolve
-     * @param packageName The package for the type
-     * @param role The role of the property
-     * @param fallbackTitle The fallback title for the type
-     * @return The resolved Kotlin type name
-     */
-    fun resolveArraySchemaType(arraySchema: ArraySchema, packageName: String, role: PropertyRole, fallbackTitle: String): TypeName {
-        logger.debug("Resolving array items schema: ${arraySchema.toJson()}")
+    fun resolveArraySchemaType(arraySchema: ArraySchema, packageName: String, role: PropertyRole, fallbackTitle: String, tmRefUrl: String? = null): TypeName {
         val arrayName = arraySchema.title.getOrNull()?.toString() ?: fallbackTitle
         val parametrizedType = arraySchema.items.get().let {
             when (it) {
-                is ArraySchema -> resolveArraySchemaType(it, arrayName, role, "${fallbackTitle}Array")
+                is ArraySchema -> resolveArraySchemaType(it, arrayName, role, "${fallbackTitle}Array", tmRefUrl)
                 // Note that ObjectSchema is SingleDataSchema, so we first need to
                 // check for ObjectSchema as it is more specific
-                is ObjectSchema -> classGenerator.generateClassFrom("${arrayName}Item", it, packageName, role, parentClassName = arrayName)
-                is SingleDataSchema -> resolveSchemaType(it, packageName, role, parentClassName = arrayName)
+                is ObjectSchema -> classGenerator.generateClassFrom("${arrayName}Item", it, packageName, role, parentClassName = arrayName, tmRefUrl = tmRefUrl)
+                is SingleDataSchema -> resolveSchemaType(it, packageName, role, parentClassName = arrayName, tmRefUrl = tmRefUrl)
                 else -> {
                     throw IllegalArgumentException("Unsupported type for array items")
                 }

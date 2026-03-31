@@ -84,6 +84,7 @@ The WoT Kotlin Generator consists of two Maven modules:
 | `generateSuspendDsl` | boolean | No | `false` | Whether DSL functions should be suspend functions                        |
 | `submodelOnly` | boolean | No | `false` | Generate a self-contained submodel package instead of a full device model |
 | `featureName` | String | No | _(camelCase of model title)_ | JSON key for the feature when using `submodelOnly`                       |
+| `deduplicateReferencedTypes` | boolean | No | `false` | Collapse identical types shared via `tm:ref` into a single generated class |
 
 
 ## Submodel-Only Mode
@@ -208,6 +209,65 @@ Uses original schema titles when possible, falls back to compound naming for con
 - Shorter, more readable names when possible
 - Maintains original schema naming intent
 - Automatic conflict resolution
+
+### Type Deduplication
+
+When a WoT Thing Model reuses the same type definition across multiple features via `tm:ref`, the generator normally creates a separate class for each occurrence. With `deduplicateReferencedTypes=true`, identical types are collapsed into a single generated class, and all other occurrences reference it via import.
+
+#### How It Works
+
+The generator uses a two-phase approach:
+
+1. **Pre-scan phase**: Before code generation, the generator scans the Thing Model JSON to discover all `tm:ref` URLs and their target schemas. It records:
+   - A fingerprint of each referenced schema (for content-based matching)
+   - The `title` field from each referenced schema (for naming)
+   - How many properties reference each `tm:ref` URL
+
+2. **Generation phase**: When generating a class for a property, the generator checks:
+   - Has this `tm:ref` URL already been generated? If so, reuse that class.
+   - Does the schema JSON match a previously generated class? If so, reuse it.
+   - Otherwise, generate a new class and register it for future reuse.
+
+#### Title-Based Naming
+
+When dedup is enabled and a `tm:ref` is referenced by multiple properties, the generator uses the **title from the referenced schema** as the class name instead of the first property name. This avoids misleading names when multiple properties share the same type definition.
+
+Falls back to the property name if:
+- Only one property references the `tm:ref` (no ambiguity)
+- The title would produce the same class name as the property name (no benefit)
+- Two distinct `tm:ref` targets would produce the same class name (conflict)
+
+#### Configuration
+
+```xml
+<configuration>
+    <thingModelUrl>https://example.org/thing-model.jsonld</thingModelUrl>
+    <packageName>com.example.iot</packageName>
+    <deduplicateReferencedTypes>true</deduplicateReferencedTypes>
+</configuration>
+```
+
+#### What to Expect
+
+With dedup **disabled** (default):
+- Each feature gets its own copy of shared types
+- Class names are derived from the property name in each feature
+- No cross-feature imports
+
+With dedup **enabled**:
+- Shared types are generated once in the first feature that uses them
+- Other features import the shared type instead of generating a duplicate
+- Class names for multi-referenced types use the `tm:ref` target's title
+- File count decreases (the reduction depends on how many types are shared in the model)
+
+#### Interaction with Other Settings
+
+| Setting | Effect with Dedup |
+|---------|-------------------|
+| `COMPOUND_ALL` | Shared types use compound names from the first feature, others import |
+| `ORIGINAL_THEN_COMPOUND` | Shared types use the schema title when possible, resulting in shorter names |
+| `INLINE` | Enum dedup works within inline enums — identical enums are generated once |
+| `SEPARATE_CLASS` | Separate enum files are deduplicated — identical enums in different packages import the canonical one |
 
 ### DSL Configuration
 

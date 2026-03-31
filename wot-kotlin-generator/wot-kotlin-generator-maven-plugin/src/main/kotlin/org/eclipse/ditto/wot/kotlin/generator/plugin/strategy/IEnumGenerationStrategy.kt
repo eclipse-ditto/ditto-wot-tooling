@@ -24,6 +24,9 @@ import org.eclipse.ditto.wot.model.SingleDataSchema
  */
 interface IEnumGenerationStrategy {
 
+    /** Whether this strategy generates enums inline within the containing class. */
+    val isInline: Boolean
+
     /**
      * Generates an enum from a schema.
      *
@@ -40,7 +43,8 @@ interface IEnumGenerationStrategy {
         enumArray: MutableSet<JsonValue>,
         schemaType: DataSchemaType,
         packageName: String = "",
-        parentClassName: String? = null
+        parentClassName: String? = null,
+        tmRefUrl: String? = null
     ): String
 
     /**
