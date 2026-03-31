@@ -15,6 +15,9 @@ package org.eclipse.ditto.wot.kotlin.generator.plugin
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.ClassGenerator
+import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.ClassRegistry
+import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.EnumRegistry
+import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.SharedTypeRegistry
 import org.eclipse.ditto.wot.kotlin.generator.plugin.config.GeneratorConfiguration
 import org.eclipse.ditto.wot.kotlin.generator.plugin.loader.DittoBasedWotLoader
 import org.eclipse.ditto.wot.kotlin.generator.plugin.strategy.EnumGenerationStrategyFactory
@@ -102,13 +105,22 @@ object ThingModelGenerator {
      * @param config The configuration controlling the generation process
      */
     suspend fun generate(thingModel: ThingModel, config: GeneratorConfiguration) {
-        logger.info("Using enum generation strategy: ${config.enumGenerationStrategy}")
-        logger.info("Generate DSL: ${config.generateDsl}")
-        logger.info("Generate Enums: ${config.generateEnums}")
-        logger.info("Generate Interfaces: ${config.generateInterfaces}")
+        logger.debug("Using enum generation strategy: ${config.enumGenerationStrategy}")
+        logger.debug("Generate DSL: ${config.generateDsl}")
+        logger.debug("Generate Enums: ${config.generateEnums}")
+        logger.debug("Generate Interfaces: ${config.generateInterfaces}")
 
         classGenerator.setOutputDir(config.outputDirectory.path)
         classGenerator.setEnumGenerationStrategy(config)
+
+        // Clear all registries at the start of each generation run to prevent stale state
+        // from a previous model leaking into the current one in multi-execution builds.
+        ClassRegistry.clear()
+        EnumRegistry.clear()
+        if (config.deduplicateReferencedTypes) {
+            logger.info("Type deduplication enabled: types from the same tm:ref will be generated once (first encounter wins)")
+            SharedTypeRegistry.clear()
+        }
 
         // Set enum generation strategy in WrapperTypeChecker
         val enumStrategy = EnumGenerationStrategyFactory.createStrategy(config)

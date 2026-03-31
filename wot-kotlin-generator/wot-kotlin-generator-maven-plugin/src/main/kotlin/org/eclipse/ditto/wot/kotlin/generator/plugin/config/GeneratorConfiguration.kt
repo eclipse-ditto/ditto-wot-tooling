@@ -61,7 +61,15 @@ data class GeneratorConfiguration(
      * If not set, the name is derived from the model title in camelCase.
      * Only used when [submodelOnly] is true.
      */
-    val featureName: String? = null
+    val featureName: String? = null,
+
+    /**
+     * When true, types referenced from the same `tm:ref` URL are generated only once.
+     * The first encounter determines the name and package; subsequent encounters reuse
+     * that class instead of generating a duplicate. For types without `tm:ref`, structurally
+     * identical schemas with the same class name are also deduplicated.
+     */
+    val deduplicateReferencedTypes: Boolean = false
 ) {
     /**
      * Creates a copy with updated values, useful for building configurations incrementally.
@@ -77,7 +85,8 @@ data class GeneratorConfiguration(
         generateEnums: Boolean? = null,
         generateInterfaces: Boolean? = null,
         submodelOnly: Boolean? = null,
-        featureName: String? = null
+        featureName: String? = null,
+        deduplicateReferencedTypes: Boolean? = null
     ): GeneratorConfiguration {
         return copy(
             thingModelUrl = thingModelUrl ?: this.thingModelUrl,
@@ -90,7 +99,8 @@ data class GeneratorConfiguration(
             generateEnums = generateEnums ?: this.generateEnums,
             generateInterfaces = generateInterfaces ?: this.generateInterfaces,
             submodelOnly = submodelOnly ?: this.submodelOnly,
-            featureName = featureName ?: this.featureName
+            featureName = featureName ?: this.featureName,
+            deduplicateReferencedTypes = deduplicateReferencedTypes ?: this.deduplicateReferencedTypes
         )
     }
 

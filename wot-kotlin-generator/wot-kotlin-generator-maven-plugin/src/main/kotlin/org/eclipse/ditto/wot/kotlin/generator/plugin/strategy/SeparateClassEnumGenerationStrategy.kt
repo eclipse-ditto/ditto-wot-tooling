@@ -20,12 +20,13 @@ import org.eclipse.ditto.json.JsonValue
 import org.eclipse.ditto.wot.kotlin.generator.common.model.enum.JsonEnum
 import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.ClassGenerator
 import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.EnumRegistry
+import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.SharedTypeRegistry
 import org.eclipse.ditto.wot.kotlin.generator.plugin.util.*
+import org.slf4j.LoggerFactory
 import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.ObjectSchema
 import org.eclipse.ditto.wot.model.SingleDataSchema
 import kotlin.jvm.optionals.getOrNull
-import com.fasterxml.jackson.annotation.JsonValue as JacksonJsonValue
 
 /**
  * Strategy for generating enums as separate class files.
@@ -35,7 +36,10 @@ import com.fasterxml.jackson.annotation.JsonValue as JacksonJsonValue
  */
 class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
 
+    override val isInline: Boolean = false
+
     private val classGenerator = ClassGenerator
+    private val logger = LoggerFactory.getLogger(SeparateClassEnumGenerationStrategy::class.java)
 
     override fun generateEnum(
         propertySchema: SingleDataSchema?,
@@ -43,7 +47,8 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         enumArray: MutableSet<JsonValue>,
         schemaType: DataSchemaType,
         packageName: String,
-        parentClassName: String?
+        parentClassName: String?,
+        tmRefUrl: String?
     ): String {
         val config = classGenerator.getConfig()
         val enumName = try {
@@ -56,23 +61,60 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
             asClassName(propertyName ?: "Enum")
         }
         val enumValues = asListOf(enumArray, schemaType)
-        return when (schemaType) {
+        val enumConstantNames = buildEnumConstantNames(enumName, enumValues, enumArray, schemaType)
+
+        if (config != null && config.deduplicateReferencedTypes && tmRefUrl != null) {
+            val existing = SharedTypeRegistry.findEnumByRef(tmRefUrl)
+            if (existing != null) {
+                logger.debug("Dedup: Reusing enum {} for '{}' via tm:ref {}", existing.canonicalName, enumName, tmRefUrl)
+                // Register the existing enum's ClassName for the current package so
+                // WrapperTypeChecker can resolve the cross-package reference
+                SharedTypeRegistry.registerEnumAlias(packageName, enumName, existing)
+                return existing.simpleName!!
+            }
+        }
+
+        if (config?.deduplicateReferencedTypes == true) {
+            val existing = SharedTypeRegistry.findExistingEnum(enumConstantNames, schemaType)
+            if (existing != null && existing.simpleName == enumName) {
+                logger.debug("Dedup: Reusing enum {} for '{}' (same values)", existing.canonicalName, enumName)
+                SharedTypeRegistry.registerEnumAlias(packageName, enumName, existing)
+                return existing.simpleName!!
+            }
+        }
+
+        val resolvedEnumName = resolveEnumNameConflict(
+            enumName,
+            enumConstantNames,
+            packageName,
+            parentClassName,
+            config?.deduplicateReferencedTypes == true
+        )
+            ?: return enumName
+
+        val result = when (schemaType) {
             DataSchemaType.INTEGER -> generateEnumWithProperty(
-                enumName,
+                resolvedEnumName,
                 enumValues,
                 LONG,
                 packageName
             )
             DataSchemaType.NUMBER -> generateEnumWithProperty(
-                enumName,
+                resolvedEnumName,
                 enumValues,
                 DOUBLE,
                 packageName
             )
-            DataSchemaType.STRING -> generateStringEnum(enumName, enumValues, packageName)
-            DataSchemaType.OBJECT -> generateObjectEnum(propertySchema as ObjectSchema, enumName, enumArray, packageName)
+            DataSchemaType.STRING -> generateStringEnum(resolvedEnumName, enumValues, packageName)
+            DataSchemaType.OBJECT -> generateObjectEnum(propertySchema as ObjectSchema, resolvedEnumName, enumArray, packageName)
             else -> throw IllegalArgumentException("Unsupported type for enum property $schemaType")
         }
+
+        if (config?.deduplicateReferencedTypes == true && tmRefUrl != null) {
+            SharedTypeRegistry.registerEnumByRef(tmRefUrl, ClassName(packageName, result))
+        }
+
+        return result
     }
 
     override fun generateActionEnum(
@@ -125,6 +167,7 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
     }
 
     private fun generateStringEnum(enumName: String, enumValues: List<Any>, packageName: String): String {
+        val config = classGenerator.getConfig()
         val firstEnumValue = enumValues.first().toString()
         val isSimpleEnum = asEnumConstantName(enumName, firstEnumValue) == firstEnumValue
 
@@ -169,6 +212,10 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         EnumRegistry.registerEnum(enumSpec, packageName, enumConstantNames)
         ClassGenerator.generateNewClass(enumSpec, enumName, packageName)
 
+        if (config?.deduplicateReferencedTypes == true) {
+            SharedTypeRegistry.registerEnum(enumConstantNames, DataSchemaType.STRING, ClassName(packageName, enumName))
+        }
+
         return enumName
     }
 
@@ -178,6 +225,7 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         valueType: TypeName,
         packageName: String
     ): String {
+        val config = classGenerator.getConfig()
         val enumSpecBuilder = TypeSpec.enumBuilder(enumName)
             .primaryConstructor(
                 FunSpec.constructorBuilder()
@@ -207,6 +255,11 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         EnumRegistry.registerEnum(enumSpec, packageName, enumConstantNames)
         ClassGenerator.generateNewClass(enumSpec, enumName, packageName)
 
+        if (config?.deduplicateReferencedTypes == true) {
+            val schemaType = if (valueType == LONG) DataSchemaType.INTEGER else DataSchemaType.NUMBER
+            SharedTypeRegistry.registerEnum(enumConstantNames, schemaType, ClassName(packageName, enumName))
+        }
+
         return enumName
     }
 
@@ -216,6 +269,7 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         enumArray: MutableSet<JsonValue>,
         packageName: String
     ): String {
+        val config = classGenerator.getConfig()
         val enumSpecBuilder = TypeSpec.classBuilder(enumName)
             .addModifiers(KModifier.SEALED)
             .addSuperinterface(JsonEnum::class)
@@ -276,7 +330,7 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
             val adjustedPropertyName = asPropertyName(propertyName)
             val typeName = asPrimitiveClassName(schema)
             companionBuilder.addFunction(
-                FunSpec.builder("from${adjustedPropertyName.capitalize()}")
+                FunSpec.builder("from${adjustedPropertyName.replaceFirstChar { it.titlecase() }}")
                     .returns(enumClassName.copy(nullable = true))
                     .addParameter(adjustedPropertyName, typeName.copy(nullable = true))
                     .addCode("return INSTANCES.firstOrNull { it.$adjustedPropertyName == $adjustedPropertyName }")
@@ -336,50 +390,70 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         EnumRegistry.registerEnum(enumSpec, packageName, enumConstantNames)
         ClassGenerator.generateNewClass(enumSpec, enumName, packageName)
 
+        if (config?.deduplicateReferencedTypes == true) {
+            SharedTypeRegistry.registerEnum(enumConstantNames, DataSchemaType.OBJECT, ClassName(packageName, enumName))
+        }
+
         return enumName
     }
 
-    private fun buildToValueFunc(valueType: TypeName): FunSpec {
-        return FunSpec.builder("toValue")
-            .addAnnotation(JacksonJsonValue::class)
-            .returns(valueType)
-            .addCode("return _value")
-            .build()
-    }
-
-    private fun buildFromValueFunc(enumClassName: ClassName, valueType: TypeName): FunSpec {
-        return FunSpec.builder("fromValue")
-            .addAnnotation(JsonCreator::class)
-            .returns(enumClassName.copy(nullable = true))
-            .addParameter("v", valueType.copy(nullable = true))
-            .addCode("return entries.firstOrNull { it._value == v }")
-            .build()
-    }
-
-    private fun buildFromNameFunc(enumClassName: ClassName): FunSpec {
-        return FunSpec.builder("fromName")
-            .returns(enumClassName.copy(nullable = true))
-            .addParameter("name", String::class.asTypeName().copy(nullable = true))
-            .addCode("return entries.firstOrNull { it.name == name }")
-            .build()
-    }
+    private fun buildToValueFunc(valueType: TypeName) = EnumBuilderHelper.buildToValueFunc(valueType)
+    private fun buildFromValueFunc(enumClassName: ClassName, valueType: TypeName) = EnumBuilderHelper.buildFromValueFunc(enumClassName, valueType)
+    private fun buildFromNameFunc(enumClassName: ClassName) = EnumBuilderHelper.buildFromNameFunc(enumClassName)
 
     private fun addCustomEnumConstants(
         enumSpecBuilder: TypeSpec.Builder,
         enumName: String,
         enumValues: List<Any>,
         valueType: TypeName
-    ) {
-        enumValues.forEach {
-            enumSpecBuilder.addEnumConstant(
-                asEnumConstantName(enumName, it.toString()),
-                TypeSpec.anonymousClassBuilder()
-                    .addSuperclassConstructorParameter(
-                        if (valueType == STRING) "%S" else "%L",
-                        it
-                    )
-                    .build()
-            )
+    ) = EnumBuilderHelper.addCustomEnumConstants(enumSpecBuilder, enumName, enumValues, valueType, useSeparateClassNaming = true)
+
+    /**
+     * Resolves enum naming conflicts by prefixing with the parent class name
+     * when an enum with the same name but different values already exists.
+     * Returns null to signal "reuse existing" when values are identical (dedup).
+     */
+    private fun resolveEnumNameConflict(
+        enumName: String,
+        enumConstantNames: Set<String>,
+        packageName: String,
+        parentClassName: String?,
+        deduplicateReferencedTypes: Boolean
+    ): String? {
+        val existingEnum = EnumRegistry.getEnumByNameInPackage(enumName, packageName)
+        if (existingEnum != null) {
+            val existingConstants = EnumRegistry.getEnumValuesInPackage(packageName, enumName)
+                ?: existingEnum.enumConstants.keys.toSet()
+            if (existingConstants == enumConstantNames) {
+                if (deduplicateReferencedTypes) {
+                    logger.debug("Dedup: Reusing enum '{}' in {} (same values)", enumName, packageName)
+                    return null  // signal: reuse existing
+                }
+            }
+            if (parentClassName != null) {
+                val prefixed = "${asClassName(parentClassName)}${asClassName(enumName)}"
+                logger.debug("Enum name conflict for '$enumName' in $packageName - resolving as '$prefixed'")
+                return prefixed
+            }
+        }
+        return enumName
+    }
+
+    private fun buildEnumConstantNames(
+        enumName: String,
+        enumValues: List<Any>,
+        enumArray: MutableSet<JsonValue>,
+        schemaType: DataSchemaType
+    ): Set<String> {
+        return when (schemaType) {
+            DataSchemaType.STRING,
+            DataSchemaType.INTEGER,
+            DataSchemaType.NUMBER -> enumValues.map { asEnumConstantName(enumName, it.toString()) }.toSet()
+            DataSchemaType.OBJECT -> enumArray.map {
+                asValidEnumConstant(it.asObject().getValue("name").getOrNull().toString())
+            }.toSet()
+            else -> emptySet()
         }
     }
+
 }

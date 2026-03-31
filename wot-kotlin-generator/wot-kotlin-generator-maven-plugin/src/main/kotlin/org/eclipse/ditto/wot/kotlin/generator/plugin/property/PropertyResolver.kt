@@ -16,6 +16,7 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.UNIT
+import org.eclipse.ditto.json.JsonKey
 import org.eclipse.ditto.json.JsonObject
 import org.eclipse.ditto.json.JsonPointer
 import org.eclipse.ditto.wot.kotlin.generator.plugin.clazz.ClassGenerator
@@ -26,6 +27,7 @@ import kotlin.jvm.optionals.getOrNull
 
 object PropertyResolver {
 
+    private val rootPropertiesPath = JsonPointer.of("properties")
     private val classGenerator = ClassGenerator
     private val wrapperTypeChecker = WrapperTypeChecker
     private val schemaTypeResolver = SchemaTypeResolver
@@ -43,11 +45,16 @@ object PropertyResolver {
         properties: Properties?,
         parentPackage: String,
         role: PropertyRole,
-        feature: String? = null
+        feature: String? = null,
+        tmRefMap: Map<JsonPointer, String>? = null
     ): MutableMap<Pair<Property, PropertySpec>, String?> {
         return properties?.filter { it.value.type.isPresent || it.value.toJson().contains("tm:ref") }?.map {
             val dittoCategory = extractPropertyCategory(it.value.toJson())
-            val type = resolvePropertyType(it.value, parentPackage, role, feature, dittoCategory)
+            val propertyTmRef = resolveTmRefForProperty(it.key, tmRefMap, it.value.toJson(), rootPropertiesPath)
+            if (propertyTmRef != null) {
+                logger.debug("Found tm:ref for property '{}': {}", it.key, propertyTmRef)
+            }
+            val type = resolvePropertyType(it.value, parentPackage, role, feature, dittoCategory, propertyTmRef)
             Pair(
                 it.value,
                 createPropertySpec(it.key, type)
@@ -68,10 +75,13 @@ object PropertyResolver {
         fields: Map<String, SingleDataSchema>,
         packageName: String,
         role: PropertyRole,
-        parentClassName: String? = null
+        parentClassName: String? = null,
+        tmRefMap: Map<JsonPointer, String>? = null,
+        currentPropertiesPath: JsonPointer = rootPropertiesPath
     ): List<Pair<String, PropertySpec>> {
         return fields.map {
-            val poetType = schemaTypeResolver.resolveSchemaType(it.value, packageName, role, it.key, parentClassName)
+            val fieldTmRef = resolveTmRefForProperty(it.key, tmRefMap, it.value.toJson(), currentPropertiesPath)
+            val poetType = schemaTypeResolver.resolveSchemaType(it.value, packageName, role, it.key, parentClassName, fieldTmRef)
             it.key to createPropertySpec(it.key, poetType)
         }
     }
@@ -118,11 +128,33 @@ object PropertyResolver {
     }
 
 
+    /**
+     * Extracts a top-level tm:ref URL directly from a property's JSON.
+     * Returns null if the property has no tm:ref or the value is not a string.
+     */
+    private fun extractTmRef(propertyJson: JsonObject): String? {
+        val ref = propertyJson.getValue(JsonPointer.of("tm:ref")).getOrNull() ?: return null
+        return try {
+            ref.asString().replace("\"", "")
+        } catch (e: UnsupportedOperationException) {
+            logger.warn("tm:ref value is not a string in {}: {}", propertyJson, e.message)
+            null
+        }
+    }
+
+    private fun resolveTmRefForProperty(
+        propertyName: String,
+        tmRefMap: Map<JsonPointer, String>?,
+        propertyJson: JsonObject,
+        propertiesPath: JsonPointer
+    ): String? {
+        val propertyPath = propertiesPath.addLeaf(JsonKey.of(propertyName))
+        return tmRefMap?.get(propertyPath) ?: extractTmRef(propertyJson)
+    }
+
     private fun extractPropertyCategory(propertyJson: JsonObject): String? {
-        val propertyCategoryString = propertyJson.getValue(JsonPointer.of("ditto:category"))
+        return propertyJson.getValue(JsonPointer.of("ditto:category"))
             .getOrNull()?.asString()
-        logger.debug("Extracted property category: $propertyCategoryString")
-        return propertyCategoryString
     }
 
     private fun resolvePropertyType(
@@ -130,7 +162,8 @@ object PropertyResolver {
         propertyPackage: String,
         role: PropertyRole,
         feature: String?,
-        dittoCategory: String?
+        dittoCategory: String?,
+        tmRefUrl: String? = null
     ): TypeName {
         return when (property.type.get()) {
             DataSchemaType.BOOLEAN -> wrapperTypeChecker.checkForWrapperType(
@@ -141,7 +174,8 @@ object PropertyResolver {
                 role,
                 feature,
                 dittoCategory,
-                parentClassName = null
+                parentClassName = null,
+                tmRefUrl = tmRefUrl
             )
 
             DataSchemaType.INTEGER -> wrapperTypeChecker.checkForWrapperType(
@@ -152,7 +186,8 @@ object PropertyResolver {
                 role,
                 feature,
                 dittoCategory,
-                parentClassName = null
+                parentClassName = null,
+                tmRefUrl = tmRefUrl
             )
 
             DataSchemaType.NUMBER  -> wrapperTypeChecker.checkForWrapperType(
@@ -163,7 +198,8 @@ object PropertyResolver {
                 role,
                 feature,
                 dittoCategory,
-                parentClassName = null
+                parentClassName = null,
+                tmRefUrl = tmRefUrl
             )
 
             DataSchemaType.STRING  -> wrapperTypeChecker.checkForWrapperType(
@@ -174,7 +210,8 @@ object PropertyResolver {
                 role,
                 feature,
                 dittoCategory,
-                parentClassName = null
+                parentClassName = null,
+                tmRefUrl = tmRefUrl
             )
 
             DataSchemaType.OBJECT  -> {
@@ -187,7 +224,8 @@ object PropertyResolver {
                         role,
                         feature,
                         dittoCategory,
-                        parentClassName = null
+                        parentClassName = null,
+                        tmRefUrl = tmRefUrl
                     )
                 } else {
                     val objectSchema = property.asObjectSchema()
@@ -199,7 +237,8 @@ object PropertyResolver {
                         asObjectProperty = objectSchema.isPatternPropertiesSchema() || objectSchema.isAdditionalPropertiesSchema(),
                         feature = feature,
                         parentClassName = null,
-                        dittoCategory = dittoCategory
+                        dittoCategory = dittoCategory,
+                        tmRefUrl = tmRefUrl
                     )
                 }
             }
@@ -208,7 +247,8 @@ object PropertyResolver {
                 property.asArraySchema(),
                 propertyPackage,
                 role,
-                property.propertyName
+                property.propertyName,
+                tmRefUrl
             )
 
             DataSchemaType.NULL    -> UNIT.copy(nullable = true)
@@ -232,6 +272,4 @@ object PropertyResolver {
 
 
 }
-
-
 
