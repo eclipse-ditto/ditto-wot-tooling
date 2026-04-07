@@ -23,11 +23,15 @@ import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.MultipleDataSchema
 import org.eclipse.ditto.wot.model.Property
 import org.eclipse.ditto.wot.model.SingleDataSchema
+import org.eclipse.ditto.wot.model.SingleDataSchema.DataSchemaJsonFields
 import java.math.BigDecimal
 import kotlin.jvm.optionals.getOrNull
 import org.eclipse.ditto.wot.model.ArraySchema as WotArraySchema
+import org.eclipse.ditto.wot.model.IntegerSchema as WotIntegerSchema
+import org.eclipse.ditto.wot.model.NumberSchema as WotNumberSchema
 import org.eclipse.ditto.wot.model.ObjectSchema as WotObjectSchema
 import org.eclipse.ditto.wot.model.SingleDataSchema as WotSchema
+import org.eclipse.ditto.wot.model.StringSchema as WotStringSchema
 
 /**
  * Utility functions for Web of Things (WoT) to OpenAPI schema conversion.
@@ -224,33 +228,53 @@ object Utils {
         openAPI: OpenAPI? = null
     ): Schema<*> {
         schema.readOnly(wotSchema.isReadOnly).writeOnly(wotSchema.isWriteOnly)
+        val wotJson = wotSchema.toJson()
         when (schema) {
             is IntegerSchema, is NumberSchema -> {
-                wotSchema.toJson().getValue("minimum")?.getOrNull()?.let {
+                wotJson.getValue("minimum")?.getOrNull()?.let {
                     schema.minimum = when {
                         it.isNumber && schema is IntegerSchema -> BigDecimal(it.asInt())
                         it.isNumber && schema is NumberSchema -> BigDecimal(it.asDouble())
                         else -> null
                     }
                 }
-                wotSchema.toJson().getValue("maximum")?.getOrNull()?.let {
+                wotJson.getValue("maximum")?.getOrNull()?.let {
                     schema.maximum = when {
                         it.isNumber && schema is IntegerSchema -> BigDecimal(it.asInt())
                         it.isNumber && schema is NumberSchema -> BigDecimal(it.asDouble())
                         else -> null
                     }
                 }
+                wotSchema.const.getOrNull()?.let { constValue ->
+                    if (constValue.isNumber) {
+                        when (schema) {
+                            is IntegerSchema -> schema._const(constValue.asInt())
+                            is NumberSchema -> schema._const(BigDecimal.valueOf(constValue.asDouble()))
+                        }
+                    }
+                }
             }
 
             is StringSchema -> {
-                val enumValues = wotSchema.toJson().getValue("enum")?.getOrNull()?.asArray()
-                if (enumValues != null && enumValues.isEmpty.not()) {
+                wotSchema.enum.takeIf { it.isNotEmpty() }?.let { enumValues ->
                     schema.enum = enumValues.map { it.asString() }
                 }
-                schema.format = wotSchema.toJson().getValue("format")?.getOrNull()?.asString()
-                schema.pattern = wotSchema.toJson().getValue("pattern")?.getOrNull()?.asString()
+                schema.format = wotSchema.format.getOrNull()
+                schema.pattern = wotJson.getValue(WotStringSchema.JsonFields.PATTERN).getOrNull()
+                wotSchema.const.getOrNull()?.let { constValue ->
+                    if (constValue.isString) {
+                        schema._const(constValue.asString())
+                    }
+                }
             }
 
+            is BooleanSchema -> {
+                wotSchema.const.getOrNull()?.let { constValue ->
+                    if (constValue.isBoolean) {
+                        schema._const(constValue.asBoolean())
+                    }
+                }
+            }
         }
         return createComplexTypeStructureIfNeeded(wotSchema, schema, featureName, propertyOrAction, openAPI)
     }
