@@ -107,9 +107,9 @@ object AttributeSchemaResolver {
                     }
                     is NumberSchema -> {
                         jsonObject.getValue(WotNumberSchema.JsonFields.MINIMUM).getOrNull()
-                            ?.let { schema.minimum = BigDecimal(it) }
+                            ?.let { schema.minimum = BigDecimal.valueOf(it) }
                         jsonObject.getValue(WotNumberSchema.JsonFields.MAXIMUM).getOrNull()
-                            ?.let { schema.maximum = BigDecimal(it) }
+                            ?.let { schema.maximum = BigDecimal.valueOf(it) }
                     }
                 }
 
@@ -117,7 +117,7 @@ object AttributeSchemaResolver {
                     if (enumValues.isEmpty.not()) {
                         when (schema) {
                             is IntegerSchema -> schema.enum = enumValues.map { it.asInt() }
-                            is NumberSchema -> schema.enum = enumValues.map { BigDecimal(it.asDouble()) }
+                            is NumberSchema -> schema.enum = enumValues.map { BigDecimal.valueOf(it.asDouble()) }
                         }
                     }
                 }

@@ -14,21 +14,28 @@ package org.eclipse.ditto.wot.openapi.generator
 
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.*
+import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.BooleanSchema
+import io.swagger.v3.oas.models.media.IntegerSchema
+import io.swagger.v3.oas.models.media.NumberSchema
+import io.swagger.v3.oas.models.media.ObjectSchema
+import io.swagger.v3.oas.models.media.StringSchema
 import org.eclipse.ditto.json.JsonObject
 import org.eclipse.ditto.json.JsonPointer
 import org.eclipse.ditto.json.JsonValue
-import org.eclipse.ditto.wot.model.Action
-import org.eclipse.ditto.wot.model.BaseLink
-import org.eclipse.ditto.wot.model.DataSchemaType
-import org.eclipse.ditto.wot.model.MultipleDataSchema
-import org.eclipse.ditto.wot.model.Property
+import org.eclipse.ditto.wot.model.*
 import org.eclipse.ditto.wot.model.SingleDataSchema
-import org.eclipse.ditto.wot.model.SingleDataSchema.DataSchemaJsonFields
 import java.math.BigDecimal
+import kotlin.Any
+import kotlin.Boolean
+import kotlin.IllegalArgumentException
+import kotlin.String
+import kotlin.error
 import kotlin.jvm.optionals.getOrNull
+import kotlin.let
+import kotlin.takeIf
+import kotlin.to
 import org.eclipse.ditto.wot.model.ArraySchema as WotArraySchema
-import org.eclipse.ditto.wot.model.IntegerSchema as WotIntegerSchema
-import org.eclipse.ditto.wot.model.NumberSchema as WotNumberSchema
 import org.eclipse.ditto.wot.model.ObjectSchema as WotObjectSchema
 import org.eclipse.ditto.wot.model.SingleDataSchema as WotSchema
 import org.eclipse.ditto.wot.model.StringSchema as WotStringSchema
@@ -234,14 +241,14 @@ object Utils {
                 wotJson.getValue("minimum")?.getOrNull()?.let {
                     schema.minimum = when {
                         it.isNumber && schema is IntegerSchema -> BigDecimal(it.asInt())
-                        it.isNumber && schema is NumberSchema -> BigDecimal(it.asDouble())
+                        it.isNumber && schema is NumberSchema -> BigDecimal.valueOf(it.asDouble())
                         else -> null
                     }
                 }
                 wotJson.getValue("maximum")?.getOrNull()?.let {
                     schema.maximum = when {
                         it.isNumber && schema is IntegerSchema -> BigDecimal(it.asInt())
-                        it.isNumber && schema is NumberSchema -> BigDecimal(it.asDouble())
+                        it.isNumber && schema is NumberSchema -> BigDecimal.valueOf(it.asDouble())
                         else -> null
                     }
                 }
