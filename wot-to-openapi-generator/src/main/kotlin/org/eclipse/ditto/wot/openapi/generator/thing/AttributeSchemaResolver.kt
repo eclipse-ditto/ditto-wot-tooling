@@ -16,10 +16,16 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.*
 import org.eclipse.ditto.json.JsonObject
 import org.eclipse.ditto.wot.model.DataSchemaType
+import org.eclipse.ditto.wot.model.SingleDataSchema.DataSchemaJsonFields
 import org.eclipse.ditto.wot.model.ThingModel
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
 import java.math.BigDecimal
 import kotlin.jvm.optionals.getOrNull
+import org.eclipse.ditto.wot.model.ArraySchema as WotArraySchema
+import org.eclipse.ditto.wot.model.IntegerSchema as WotIntegerSchema
+import org.eclipse.ditto.wot.model.NumberSchema as WotNumberSchema
+import org.eclipse.ditto.wot.model.ObjectSchema as WotObjectSchema
+import org.eclipse.ditto.wot.model.StringSchema as WotStringSchema
 
 /**
  * Resolver for WoT Thing attribute schemas to OpenAPI schemas.
@@ -68,7 +74,7 @@ object AttributeSchemaResolver {
      * @return The corresponding OpenAPI schema, or null if the type is not supported
      */
     fun getSchema(jsonObject: JsonObject): Schema<*>? {
-        return when (jsonObject.getValue("type")?.getOrNull()?.asString()?.uppercase()) {
+        return when (jsonObject.getValue(DataSchemaJsonFields.TYPE).getOrNull()?.uppercase()) {
             DataSchemaType.BOOLEAN.name -> injectSchemaOptions(jsonObject, BooleanSchema())
             DataSchemaType.INTEGER.name -> injectSchemaOptions(jsonObject, IntegerSchema())
             DataSchemaType.NUMBER.name -> injectSchemaOptions(jsonObject, NumberSchema())
@@ -81,33 +87,33 @@ object AttributeSchemaResolver {
 
     /**
      * Injects schema options and metadata into an OpenAPI schema.
-     * Handles readOnly, writeOnly, minimum, maximum, format, pattern, and enum values.
+     * Handles readOnly, writeOnly, minimum, maximum, format, pattern, enum, and const values.
      *
      * @param jsonObject The JSON object containing schema options
      * @param schema The OpenAPI schema to inject options into
      * @return The schema with injected options, or null if injection failed
      */
     fun injectSchemaOptions(jsonObject: JsonObject, schema: Schema<*>): Schema<*>? {
-        schema.readOnly = jsonObject.getValue("readOnly")?.getOrNull()?.asBoolean() ?: false
-        schema.writeOnly = jsonObject.getValue("writeOnly")?.getOrNull()?.asBoolean() ?: false
+        schema.readOnly = jsonObject.getValue(DataSchemaJsonFields.READ_ONLY).orElse(false)
+        schema.writeOnly = jsonObject.getValue(DataSchemaJsonFields.WRITE_ONLY).orElse(false)
         when (schema) {
             is IntegerSchema, is NumberSchema -> {
-                jsonObject.getValue("minimum")?.getOrNull()?.let {
-                    schema.minimum = when {
-                        it.isNumber && schema is IntegerSchema -> BigDecimal(it.asInt())
-                        it.isNumber && schema is NumberSchema -> BigDecimal(it.asDouble())
-                        else -> null
+                when (schema) {
+                    is IntegerSchema -> {
+                        jsonObject.getValue(WotIntegerSchema.JsonFields.MINIMUM).getOrNull()
+                            ?.let { schema.minimum = BigDecimal(it) }
+                        jsonObject.getValue(WotIntegerSchema.JsonFields.MAXIMUM).getOrNull()
+                            ?.let { schema.maximum = BigDecimal(it) }
                     }
-                }
-                jsonObject.getValue("maximum")?.getOrNull()?.let {
-                    schema.maximum = when {
-                        it.isNumber && schema is IntegerSchema -> BigDecimal(it.asInt())
-                        it.isNumber && schema is NumberSchema -> BigDecimal(it.asDouble())
-                        else -> null
+                    is NumberSchema -> {
+                        jsonObject.getValue(WotNumberSchema.JsonFields.MINIMUM).getOrNull()
+                            ?.let { schema.minimum = BigDecimal(it) }
+                        jsonObject.getValue(WotNumberSchema.JsonFields.MAXIMUM).getOrNull()
+                            ?.let { schema.maximum = BigDecimal(it) }
                     }
                 }
 
-                jsonObject.getValue("enum")?.getOrNull()?.asArray()?.let { enumValues ->
+                jsonObject.getValue(DataSchemaJsonFields.ENUM).getOrNull()?.let { enumValues ->
                     if (enumValues.isEmpty.not()) {
                         when (schema) {
                             is IntegerSchema -> schema.enum = enumValues.map { it.asInt() }
@@ -115,16 +121,38 @@ object AttributeSchemaResolver {
                         }
                     }
                 }
+
+                jsonObject.getValue(DataSchemaJsonFields.CONST).getOrNull()?.let { constValue ->
+                    if (constValue.isNumber) {
+                        when (schema) {
+                            is IntegerSchema -> schema._const(constValue.asInt())
+                            is NumberSchema -> schema._const(BigDecimal.valueOf(constValue.asDouble()))
+                        }
+                    }
+                }
             }
 
             is StringSchema -> {
-                schema.format = jsonObject.getValue("format")?.getOrNull()?.asString()
-                schema.pattern = jsonObject.getValue("pattern")?.getOrNull()?.asString()
+                schema.format = jsonObject.getValue(DataSchemaJsonFields.FORMAT).getOrNull()
+                schema.pattern = jsonObject.getValue(WotStringSchema.JsonFields.PATTERN).getOrNull()
 
-                // Handle enums for string schemas
-                jsonObject.getValue("enum")?.getOrNull()?.asArray()?.let { enumValues ->
+                jsonObject.getValue(DataSchemaJsonFields.ENUM).getOrNull()?.let { enumValues ->
                     if (enumValues.isEmpty.not()) {
                         schema.enum = enumValues.map { it.asString() }
+                    }
+                }
+
+                jsonObject.getValue(DataSchemaJsonFields.CONST).getOrNull()?.let { constValue ->
+                    if (constValue.isString) {
+                        schema._const(constValue.asString())
+                    }
+                }
+            }
+
+            is BooleanSchema -> {
+                jsonObject.getValue(DataSchemaJsonFields.CONST).getOrNull()?.let { constValue ->
+                    if (constValue.isBoolean) {
+                        schema._const(constValue.asBoolean())
                     }
                 }
             }
@@ -152,8 +180,8 @@ object AttributeSchemaResolver {
             val propertyObject = prop.value.asObject()
             val schema = getSchema(propertyObject) ?: return@forEach
             val deprecated = extractDeprecationNotice(propertyObject)?.deprecated == true
-            schema.title = propertyObject.getValue("title")?.getOrNull()?.asString()
-            schema.description = propertyObject.getValue("description")?.getOrNull()?.asString()
+            schema.title = propertyObject.getValue(DataSchemaJsonFields.TITLE).getOrNull()
+            schema.description = propertyObject.getValue(DataSchemaJsonFields.DESCRIPTION).getOrNull()
             if (deprecated) {
                 schema.deprecated(true)
             }
@@ -181,32 +209,34 @@ object AttributeSchemaResolver {
         when (schema) {
             is ObjectSchema -> {
                 val properties = createSubSchemaProperties(
-                    propertyObject.getValue("properties")?.getOrNull()?.asObject(),
+                    propertyObject.getValue(WotObjectSchema.JsonFields.PROPERTIES).getOrNull(),
                     openAPI,
                     fullPath
                 )
                 schema.properties(properties)
 
-                val requiredProps = propertyObject.getValue("required")?.getOrNull()?.asArray()?.map { it.asString() }
+                val requiredProps = propertyObject.getValue(WotObjectSchema.JsonFields.REQUIRED).getOrNull()
+                    ?.map { it.asString() }
                 if (!requiredProps.isNullOrEmpty()) {
                     schema.required(requiredProps)
                 }
             }
             is ArraySchema -> {
-                val itemsObject = propertyObject.getValue("items")?.getOrNull()?.asObject()
+                val itemsObject = propertyObject.getValue(WotArraySchema.JsonFields.ITEMS).getOrNull()
                 val itemSchema = getSchema(itemsObject ?: JsonObject.empty()) ?: schema as Schema<Any>
-                itemSchema.title = itemsObject?.getValue("title")?.getOrNull()?.asString()
-                itemSchema.description = itemsObject?.getValue("description")?.getOrNull()?.asString()
+                itemSchema.title = itemsObject?.getValue(DataSchemaJsonFields.TITLE)?.getOrNull()
+                itemSchema.description = itemsObject?.getValue(DataSchemaJsonFields.DESCRIPTION)?.getOrNull()
 
                 if (itemSchema is ObjectSchema) {
                     val properties = createSubSchemaProperties(
-                        itemsObject?.getValue("properties")?.getOrNull()?.asObject(),
+                        itemsObject?.getValue(WotObjectSchema.JsonFields.PROPERTIES)?.getOrNull(),
                         openAPI,
                         fullPath
                     )
                     itemSchema.properties(properties)
 
-                    val requiredProps = itemsObject?.getValue("required")?.getOrNull()?.asArray()?.map { it.asString() }
+                    val requiredProps = itemsObject?.getValue(WotObjectSchema.JsonFields.REQUIRED)?.getOrNull()
+                        ?.map { it.asString() }
                     if (!requiredProps.isNullOrEmpty()) {
                         itemSchema.required(requiredProps)
                     }
@@ -268,7 +298,11 @@ object AttributeSchemaResolver {
             schema1.description != schema2.description ||
             schema1.pattern != schema2.pattern ||
             schema1.readOnly != schema2.readOnly ||
-            schema1.writeOnly != schema2.writeOnly) {
+            schema1.writeOnly != schema2.writeOnly ||
+            schema1.const != schema2.const ||
+            schema1.enum != schema2.enum ||
+            schema1.minimum != schema2.minimum ||
+            schema1.maximum != schema2.maximum) {
             return false
         }
 
