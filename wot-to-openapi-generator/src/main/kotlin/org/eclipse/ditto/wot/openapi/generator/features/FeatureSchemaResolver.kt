@@ -49,8 +49,8 @@ object FeatureSchemaResolver {
                     as ObjectSchema
         }
 
-        featureSchema?.title = featureModel.title.get().toString()
-        featureSchema?.description = featureModel.description.get().toString()
+        featureModel.title.getOrNull()?.toString()?.let { featureSchema?.title = it }
+        featureModel.description.getOrNull()?.toString()?.let { featureSchema?.description = it }
         return featureSchema
     }
 
