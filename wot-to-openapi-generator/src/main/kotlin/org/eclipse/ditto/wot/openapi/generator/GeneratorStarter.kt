@@ -84,7 +84,6 @@ object GeneratorStarter {
             return 0
         } catch (e: Exception) {
             logger.error("An exception occurred in the generator", e)
-            e.printStackTrace()
             return 1
         }
     }
@@ -103,8 +102,7 @@ object GeneratorStarter {
             logger.info("Main function completed with exit code: $exitCode")
             exitProcess(exitCode)
         } catch (e: Exception) {
-            logger.error("An exception occurred: ${e.message}")
-            e.printStackTrace()
+            logger.error("An exception occurred", e)
             exitProcess(1)
         }
     }
