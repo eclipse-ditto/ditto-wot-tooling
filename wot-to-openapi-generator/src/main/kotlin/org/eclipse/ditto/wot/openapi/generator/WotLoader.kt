@@ -98,7 +98,6 @@ object WotLoader {
 
         openAPI.components(
             Components()
-                .schemas(errorProvider.provideDittoErrorSchemas())
                 .parameters(
                     mutableMapOf(
                         parametersProvider.resolveParameter(ParametersProvider.PATH_PARAM_THING_ID),
@@ -161,6 +160,8 @@ object WotLoader {
         }
 
         openAPI.paths(paths)
+
+        openAPI.components?.schemas?.putAll(errorProvider.provideDittoErrorSchemas())
 
         if (!Path("generated").isDirectory()) {
             Path("generated").createDirectory()
