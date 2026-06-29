@@ -48,10 +48,11 @@ object ActionsPathsGenerator {
     private fun providePathForAction(action: Action, openAPI: OpenAPI): PathItem {
         val deprecationNotice = extractDeprecationNotice(action)
         val deprecated = deprecationNotice?.deprecated == true
+        val actionDisplayName = actionDisplayName(action)
 
         val operation = Operation()
             .also { if (deprecated) it.deprecated(true) }
-            .summary("Invokes the '${action.title.getOrNull()?.toString()}' action")
+            .summary("Invokes the '$actionDisplayName' action")
             .description(mergeWithDeprecationNotice(action.description.getOrNull()?.toString(), deprecationNotice))
             .tags(listOf("Actions"))
             .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
@@ -60,7 +61,7 @@ object ActionsPathsGenerator {
         provideInputSchema(action, openAPI)?.let { inputSchema ->
             operation.requestBody(
                 RequestBody()
-                    .description("Request payload of the '${action.title.getOrNull()?.toString()}' action")
+                    .description("Request payload of the '$actionDisplayName' action")
                     .content(
                         Content().addMediaType(
                             APPLICATION_JSON,
@@ -106,9 +107,12 @@ object ActionsPathsGenerator {
 
     private fun provideOutputSchema(action: Action, openAPI: OpenAPI) =
         if (action.output.isPresent) {
-            asOpenApiSchema(action.output.get(), null, "actioninput", openAPI)
+            asOpenApiSchema(action.output.get(), null, "actionoutput", openAPI)
         } else {
             null
         }
+
+    private fun actionDisplayName(action: Action): String =
+        action.title.getOrNull()?.toString()?.takeIf { it.isNotBlank() } ?: action.actionName
 
 }

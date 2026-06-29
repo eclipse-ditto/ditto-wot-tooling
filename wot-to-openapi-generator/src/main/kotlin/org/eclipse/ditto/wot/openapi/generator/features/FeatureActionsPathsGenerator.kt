@@ -54,10 +54,11 @@ object FeatureActionsPathsGenerator {
         val actionDeprecationNotice = extractDeprecationNotice(action)
         val deprecationNotice = actionDeprecationNotice ?: submodelDeprecationNotice
         val deprecated = deprecationNotice?.deprecated == true
+        val actionDisplayName = actionDisplayName(action)
 
         val operation = Operation()
             .also { if (deprecated) it.deprecated(true) }
-            .summary("Invokes the '${action.title.getOrNull()?.toString()}' action")
+            .summary("Invokes the '$actionDisplayName' action")
             .description(mergeWithDeprecationNotice(action.description.getOrNull()?.toString(), deprecationNotice))
             .tags(listOf("Feature: $featureTitle - Actions"))
             .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
@@ -66,7 +67,7 @@ object FeatureActionsPathsGenerator {
         provideInputSchema(action, featureName, openAPI)?.let { inputSchema ->
             operation.requestBody(
                 RequestBody()
-                    .description("Request payload of the '${action.title.getOrNull()?.toString()}' action")
+                    .description("Request payload of the '$actionDisplayName' action")
                     .content(
                         Content().addMediaType(
                             APPLICATION_JSON,
@@ -115,5 +116,8 @@ object FeatureActionsPathsGenerator {
         } else {
             null
         }
+
+    private fun actionDisplayName(action: Action): String =
+        action.title.getOrNull()?.toString()?.takeIf { it.isNotBlank() } ?: action.actionName
 
 }
