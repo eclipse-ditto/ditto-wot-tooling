@@ -22,6 +22,8 @@ import org.eclipse.ditto.wot.openapi.generator.features.FeaturesPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.thing.AttributeSchemaResolver
 import org.eclipse.ditto.wot.openapi.generator.thing.ActionsPathsGenerator
 import org.eclipse.ditto.wot.openapi.generator.thing.AttributesPathsGenerator
+import org.eclipse.ditto.wot.openapi.generator.thing.ThingPathsGenerator
+import org.eclipse.ditto.wot.openapi.generator.providers.ParametersProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertContains
@@ -30,6 +32,71 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DeprecationNoticeAndPathsTest {
+
+  @Test
+  fun `get operations expose Ditto live channel query parameters`() {
+    val model = thingModelFromJson(
+      """
+      {
+        "@context": "https://www.w3.org/2022/wot/td/v1.1",
+        "@type": "tm:ThingModel",
+        "title": "Thermostat",
+        "properties": {
+        "manufacturer": {
+          "title": "Manufacturer",
+          "type": "string"
+        }
+        }
+      }
+      """.trimIndent()
+    )
+
+    val api = openApi().components(
+      Components()
+        .schemas(mutableMapOf())
+        .parameters(
+          mutableMapOf(
+            ParametersProvider.resolveParameter(ParametersProvider.PATH_PARAM_THING_ID),
+            ParametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_FIELDS),
+            ParametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_CONDITION),
+            ParametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_CHANNEL),
+            ParametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION),
+            ParametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY)
+          )
+        )
+    )
+    val paths = Paths()
+
+    ThingPathsGenerator.generateThingPaths(model, paths, api)
+    AttributesPathsGenerator.generateThingAttributesPaths(model, paths, api)
+    FeaturesPathsGenerator.generateFeaturesPaths("thermostat", model, paths, api)
+
+    val registeredParameters = api.components.parameters
+    assertNotNull(registeredParameters[ParametersProvider.QUERY_PARAM_CHANNEL])
+    assertNotNull(registeredParameters[ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION])
+    assertNotNull(registeredParameters[ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY])
+
+    val expectedRefs = setOf(
+      ParametersProvider.QUERY_PARAM_CHANNEL,
+      ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION,
+      ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY
+    )
+
+    listOf(
+      paths["/{thingId}"]?.get,
+      paths["/{thingId}/attributes"]?.get,
+      paths["/{thingId}/attributes/manufacturer"]?.get,
+      paths["/{thingId}/features/thermostat"]?.get,
+      paths["/{thingId}/features/thermostat/properties/manufacturer"]?.get
+    ).forEach { operation ->
+      val actualRefs = operation?.parameters
+        ?.mapNotNull { it.`$ref` }
+        ?.map { it.substringAfterLast('/') }
+        ?.toSet()
+        ?: emptySet()
+      assertTrue(expectedRefs.all(actualRefs::contains))
+    }
+  }
 
     @Test
     fun `extract valid deprecation notice and ignore invalid one`() {

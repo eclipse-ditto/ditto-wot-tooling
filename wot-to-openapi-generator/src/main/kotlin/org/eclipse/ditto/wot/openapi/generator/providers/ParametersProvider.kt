@@ -20,6 +20,9 @@ object ParametersProvider {
     const val PATH_PARAM_THING_ID = "PathParamThingId"
     const val QUERY_PARAM_FIELDS = "QueryParamFields"
     const val QUERY_PARAM_CONDITION = "QueryParamCondition"
+    const val QUERY_PARAM_CHANNEL = "QueryParamChannel"
+    const val QUERY_PARAM_LIVE_CHANNEL_CONDITION = "QueryParamLiveChannelCondition"
+    const val QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY = "QueryParamLiveChannelTimeoutStrategy"
 
     private val parameters: Map<String, Parameter> = mapOf(
         PATH_PARAM_THING_ID to Parameter()
@@ -85,7 +88,49 @@ object ParametersProvider {
             )
             .`in`("query")
             .required(false)
-            .schema(StringSchema())
+            .schema(StringSchema()),
+
+        QUERY_PARAM_CHANNEL to Parameter()
+            .name("channel")
+            .description(
+                """
+                    Defines to which channel to route the command: `twin` (digital twin) or `live` (the device).
+                    * If setting the channel parameter is omitted, the `twin` channel is set by default and the command is routed to the persisted representation of a thing in Eclipse Ditto.
+                    * When using the `live` channel, the command/message is sent towards the device.
+                """.trimIndent()
+            )
+            .`in`("query")
+            .required(false)
+            .schema(
+                StringSchema()
+                    ._enum(listOf("twin", "live"))
+            ),
+
+        QUERY_PARAM_LIVE_CHANNEL_CONDITION to Parameter()
+            .name("live-channel-condition")
+            .description(
+                """
+                    Defines that the request should fetch thing data via `live` channel if the given condition is met. The condition can be specified using RQL syntax.
+
+                    #### Examples
+
+                    * `?live-channel-condition=lt(_modified,"2021-12-24T12:23:42Z")`
+                    * `?live-channel-condition=ge(features/ConnectionStatus/properties/status/readyUntil,time:now)`
+                """.trimIndent()
+            )
+            .`in`("query")
+            .required(false)
+            .schema(StringSchema()),
+
+        QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY to Parameter()
+            .name("live-channel-timeout-strategy")
+            .description("Defines a strategy how to handle timeouts of a live response to a request sent via `channel=live` or with a matching live-channel-condition.")
+            .`in`("query")
+            .required(false)
+            .schema(
+                StringSchema()
+                    ._enum(listOf("fail", "use-twin"))
+            )
     )
 
     fun resolveParameter(paramKey: String) = paramKey to parameters[paramKey]
