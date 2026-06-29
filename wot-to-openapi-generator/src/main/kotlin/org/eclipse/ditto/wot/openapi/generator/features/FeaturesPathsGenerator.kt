@@ -84,6 +84,9 @@ object FeaturesPathsGenerator {
                 .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                 .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
                 .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CONDITION) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CHANNEL) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY) })
                 .responses(
                     ApiResponses()
                         .addApiResponse(
@@ -116,6 +119,9 @@ object FeaturesPathsGenerator {
                         .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                         .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
                         .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CONDITION) })
+                        .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CHANNEL) })
+                        .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION) })
+                        .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY) })
                         .responses(
                             ApiResponses()
                                 .addApiResponse(
@@ -161,6 +167,9 @@ object FeaturesPathsGenerator {
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CONDITION) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CHANNEL) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY) })
                     .responses(
                         ApiResponses()
                             .addApiResponse(

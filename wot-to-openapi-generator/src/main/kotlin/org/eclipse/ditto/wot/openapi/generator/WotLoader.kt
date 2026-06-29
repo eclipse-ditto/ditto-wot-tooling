@@ -103,7 +103,10 @@ object WotLoader {
                     mutableMapOf(
                         parametersProvider.resolveParameter(ParametersProvider.PATH_PARAM_THING_ID),
                         parametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_CONDITION),
-                        parametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_FIELDS)
+                        parametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_FIELDS),
+                        parametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_CHANNEL),
+                        parametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION),
+                        parametersProvider.resolveParameter(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY)
                     )
                 )
                 .securitySchemes(
