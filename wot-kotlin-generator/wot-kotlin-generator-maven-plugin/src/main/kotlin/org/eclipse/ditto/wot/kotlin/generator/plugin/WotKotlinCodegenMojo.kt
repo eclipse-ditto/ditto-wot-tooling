@@ -90,6 +90,10 @@ class WotKotlinCodegenMojo: AbstractMojo() {
     @Parameter(property = "generateInterfaces", defaultValue = "true")
     var generateInterfaces: Boolean = true
 
+    /** Whether to render WoT metadata (title, description, unit, constraints, ...) as KDoc on the generated code */
+    @Parameter(property = "generateKdoc", defaultValue = "true")
+    var generateKdoc: Boolean = true
+
     /**
      * When true, generates a self-contained submodel package: feature classes, a single-feature
      * Features container, and a device-agnostic Thing — without attributes or multi-device wrappers.
@@ -216,6 +220,7 @@ class WotKotlinCodegenMojo: AbstractMojo() {
             generateSuspendDsl = generateSuspendDsl,
             generateEnums = generateEnums,
             generateInterfaces = generateInterfaces,
+            generateKdoc = generateKdoc,
             submodelOnly = submodelOnly,
             featureName = featureName,
             deduplicateReferencedTypes = deduplicateReferencedTypes

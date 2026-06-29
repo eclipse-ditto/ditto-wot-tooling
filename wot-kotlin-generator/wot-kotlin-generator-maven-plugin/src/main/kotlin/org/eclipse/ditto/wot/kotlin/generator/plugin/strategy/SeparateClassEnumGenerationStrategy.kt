@@ -92,21 +92,24 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         )
             ?: return enumName
 
+        val kdoc = KdocGenerator.forSchema(propertySchema, includeAllowedValues = false)
         val result = when (schemaType) {
             DataSchemaType.INTEGER -> generateEnumWithProperty(
                 resolvedEnumName,
                 enumValues,
                 LONG,
-                packageName
+                packageName,
+                kdoc
             )
             DataSchemaType.NUMBER -> generateEnumWithProperty(
                 resolvedEnumName,
                 enumValues,
                 DOUBLE,
-                packageName
+                packageName,
+                kdoc
             )
-            DataSchemaType.STRING -> generateStringEnum(resolvedEnumName, enumValues, packageName)
-            DataSchemaType.OBJECT -> generateObjectEnum(propertySchema as ObjectSchema, resolvedEnumName, enumArray, packageName)
+            DataSchemaType.STRING -> generateStringEnum(resolvedEnumName, enumValues, packageName, kdoc)
+            DataSchemaType.OBJECT -> generateObjectEnum(propertySchema as ObjectSchema, resolvedEnumName, enumArray, packageName, kdoc)
             else -> throw IllegalArgumentException("Unsupported type for enum property $schemaType")
         }
 
@@ -166,12 +169,13 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         return fields
     }
 
-    private fun generateStringEnum(enumName: String, enumValues: List<Any>, packageName: String): String {
+    private fun generateStringEnum(enumName: String, enumValues: List<Any>, packageName: String, kdoc: String? = null): String {
         val config = classGenerator.getConfig()
         val firstEnumValue = enumValues.first().toString()
         val isSimpleEnum = asEnumConstantName(enumName, firstEnumValue) == firstEnumValue
 
         val enumSpecBuilder = TypeSpec.enumBuilder(enumName)
+        kdoc?.let { enumSpecBuilder.addKdoc("%L", it) }
 
         val enumConstantNames = enumValues.map {
             asEnumConstantName(enumName, it.toString())
@@ -223,7 +227,8 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         enumName: String,
         enumValues: List<Any>,
         valueType: TypeName,
-        packageName: String
+        packageName: String,
+        kdoc: String? = null
     ): String {
         val config = classGenerator.getConfig()
         val enumSpecBuilder = TypeSpec.enumBuilder(enumName)
@@ -233,6 +238,7 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
                     .build()
             )
             .addProperty(PropertySpec.builder("_value", valueType).initializer("_value").build())
+        kdoc?.let { enumSpecBuilder.addKdoc("%L", it) }
 
         val enumConstantNames = enumValues.map {
             asEnumConstantName(enumName, it.toString())
@@ -267,12 +273,14 @@ class SeparateClassEnumGenerationStrategy : IEnumGenerationStrategy {
         propertySchema: ObjectSchema,
         enumName: String,
         enumArray: MutableSet<JsonValue>,
-        packageName: String
+        packageName: String,
+        kdoc: String? = null
     ): String {
         val config = classGenerator.getConfig()
         val enumSpecBuilder = TypeSpec.classBuilder(enumName)
             .addModifiers(KModifier.SEALED)
             .addSuperinterface(JsonEnum::class)
+        kdoc?.let { enumSpecBuilder.addKdoc("%L", it) }
 
         val primaryConstructorBuilder = FunSpec.constructorBuilder()
         val propertiesCodeBuilder = CodeBlock.builder()

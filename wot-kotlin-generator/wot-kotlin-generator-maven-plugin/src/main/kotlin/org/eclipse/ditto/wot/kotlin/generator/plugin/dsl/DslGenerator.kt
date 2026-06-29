@@ -102,7 +102,8 @@ object DslGenerator {
         feature: String,
         featurePackage: String,
         isEntry: Boolean = false,
-        deprecationNotice: DeprecationNotice? = null
+        deprecationNotice: DeprecationNotice? = null,
+        kdoc: String? = null
     ): FunSpec {
         val className = ClassName(asPackageName(featurePackage), if (isEntry) feature else asClassName(feature))
         val propertyName = asPropertyName(feature)
@@ -129,6 +130,7 @@ object DslGenerator {
             .apply {
                 bodyStatements.forEach { addStatement(it) }
             }
+        kdoc?.let { funSpecBuilder.addKdoc("%L", it) }
         addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
         return funSpecBuilder.build()
     }
@@ -191,6 +193,7 @@ object DslGenerator {
                     .addStatement("}")
                     .addStatement("$property!!.add($itemName)")
                     .addStatement("return $itemName")
+                KdocGenerator.forSchema(prop)?.let { funSpecBuilder.addKdoc("%L", it) }
                 addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
                 funSpecBuilder.build()
             }
@@ -222,6 +225,7 @@ object DslGenerator {
                 .addStatement("$property.block()")
                 .addStatement("this.$property·=·$property")
                 .addStatement("return $property")
+            KdocGenerator.forSchema(prop)?.let { funSpecBuilder.addKdoc("%L", it) }
             addDeprecationAnnotation(funSpecBuilder, deprecationNotice, withBlockParameter = true)
             funSpecBuilder.build()
         }

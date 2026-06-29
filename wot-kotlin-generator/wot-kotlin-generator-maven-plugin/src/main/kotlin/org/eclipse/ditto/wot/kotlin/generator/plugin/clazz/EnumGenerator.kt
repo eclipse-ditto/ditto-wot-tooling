@@ -45,22 +45,25 @@ object EnumGenerator {
     ): String {
         val enumName = asClassName(propertyName!!)
         val enumValues = asListOf(enumArray, schemaType)
+        val kdoc = KdocGenerator.forSchema(propertySchema, includeAllowedValues = false)
         return when (schemaType) {
             DataSchemaType.INTEGER -> generateEnumWithProperty(
                 enumName,
                 enumValues,
-                LONG
+                LONG,
+                kdoc
             )
 
             DataSchemaType.NUMBER  -> generateEnumWithProperty(
                 enumName,
                 enumValues,
-                DOUBLE
+                DOUBLE,
+                kdoc
             )
 
-            DataSchemaType.STRING  -> generateStringEnum(enumName, enumValues)
+            DataSchemaType.STRING  -> generateStringEnum(enumName, enumValues, kdoc)
 
-            DataSchemaType.OBJECT  -> generateObjectEnum(propertySchema as ObjectSchema, enumName, enumArray)
+            DataSchemaType.OBJECT  -> generateObjectEnum(propertySchema as ObjectSchema, enumName, enumArray, kdoc)
 
             else                   -> throw IllegalArgumentException("Unsupported type for enum property $schemaType")
         }
@@ -111,11 +114,12 @@ object EnumGenerator {
     }
 
 
-    private fun generateStringEnum(enumName: String, enumValues: List<Any>): String {
+    private fun generateStringEnum(enumName: String, enumValues: List<Any>, kdoc: String? = null): String {
         val firstEnumValue = enumValues.first().toString()
         val isSimpleEnum = asEnumConstantName(enumName, firstEnumValue) == firstEnumValue
 
         val enumSpecBuilder = TypeSpec.enumBuilder(enumName)
+        kdoc?.let { enumSpecBuilder.addKdoc("%L", it) }
 
         if (isSimpleEnum) {
             enumValues.forEach {
@@ -165,7 +169,8 @@ object EnumGenerator {
     private fun generateEnumWithProperty(
         enumName: String,
         enumValues: List<Any>,
-        valueType: TypeName
+        valueType: TypeName,
+        kdoc: String? = null
     ): String {
         val enumSpecBuilder = TypeSpec.enumBuilder(enumName)
             .primaryConstructor(
@@ -174,6 +179,7 @@ object EnumGenerator {
                     .build()
             )
             .addProperty(PropertySpec.builder("_value", valueType).initializer("_value").build())
+        kdoc?.let { enumSpecBuilder.addKdoc("%L", it) }
 
         addCustomEnumConstants(enumSpecBuilder, enumName, enumValues, valueType)
 
@@ -204,11 +210,13 @@ object EnumGenerator {
     private fun generateObjectEnum(
         propertySchema: ObjectSchema,
         enumName: String,
-        enumArray: MutableSet<JsonValue>
+        enumArray: MutableSet<JsonValue>,
+        kdoc: String? = null
     ): String {
         val enumSpecBuilder = TypeSpec.classBuilder(enumName)
             .addModifiers(KModifier.SEALED)
             .addSuperinterface(JsonEnum::class)
+        kdoc?.let { enumSpecBuilder.addKdoc("%L", it) }
 
         val primaryConstructorBuilder = FunSpec.constructorBuilder()
         val propertiesCodeBuilder = CodeBlock.builder()

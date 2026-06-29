@@ -50,6 +50,12 @@ data class GeneratorConfiguration(
     val generateInterfaces: Boolean = true,
 
     /**
+     * Whether to render WoT metadata (title, description, unit, semantic @type, value constraints, defaults,
+     * allowed values, ...) as KDoc on the generated properties, DSL builder functions, enums and action types.
+     */
+    val generateKdoc: Boolean = true,
+
+    /**
      * When true, generates a self-contained submodel package: feature classes, a single-feature
      * Features container, and a device-agnostic Thing — without attributes or multi-device wrappers.
      * Use for shared submodels referenced by multiple device types.
@@ -84,6 +90,7 @@ data class GeneratorConfiguration(
         generateSuspendDsl: Boolean? = null,
         generateEnums: Boolean? = null,
         generateInterfaces: Boolean? = null,
+        generateKdoc: Boolean? = null,
         submodelOnly: Boolean? = null,
         featureName: String? = null,
         deduplicateReferencedTypes: Boolean? = null
@@ -98,6 +105,7 @@ data class GeneratorConfiguration(
             generateSuspendDsl = generateSuspendDsl ?: this.generateSuspendDsl,
             generateEnums = generateEnums ?: this.generateEnums,
             generateInterfaces = generateInterfaces ?: this.generateInterfaces,
+            generateKdoc = generateKdoc ?: this.generateKdoc,
             submodelOnly = submodelOnly ?: this.submodelOnly,
             featureName = featureName ?: this.featureName,
             deduplicateReferencedTypes = deduplicateReferencedTypes ?: this.deduplicateReferencedTypes

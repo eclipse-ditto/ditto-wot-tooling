@@ -633,6 +633,10 @@ object ClassGenerator {
     ): Triple<PropertySpec, String, DeprecationNotice?> {
         val propertyName = asPropertyName(originalFeatureName)
         val featurePackage = "$featuresPackageName.${asPackageName(originalFeatureName)}"
+        val featureKdoc = KdocGenerator.forText(
+            featureModel.title.getOrNull()?.toString(),
+            featureModel.description.getOrNull()?.toString()
+        )
         val linkProperties = propertyResolver.resolveProperties(
             featureModel.properties.getOrNull(), "$featurePackage.properties",
             PropertyRole.nextLevel(PropertyRole.FEATURE), propertyName
@@ -645,12 +649,14 @@ object ClassGenerator {
         }
         generateFeatureClassFromProperties(
             originalFeatureName, asClassName(propertyName), featurePackage,
-            featureModel.properties.getOrNull(), featureModel.actions.getOrNull(), submodelDeprecationNotice
+            featureModel.properties.getOrNull(), featureModel.actions.getOrNull(), submodelDeprecationNotice, featureKdoc
         )
         return Triple(
             PropertySpec.builder(
                 propertyName, ClassName(featurePackage, asClassName(propertyName)).copy(nullable = true)
-            ).mutable(true).initializer("null").build(),
+            ).mutable(true).initializer("null")
+                .apply { featureKdoc?.let { addKdoc("%L", it) } }
+                .build(),
             originalFeatureName,
             submodelDeprecationNotice
         )
@@ -776,6 +782,7 @@ object ClassGenerator {
         val typeSpecBuilder = TypeSpec.classBuilder(className)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
             .addAnnotation(buildJsonIncludeAnnotationSpec())
+        KdocGenerator.forSchema(objectSchema)?.let { typeSpecBuilder.addKdoc("%L", it) }
 
         superClass?.let {
             typeSpecBuilder.superclass(it)
@@ -971,7 +978,10 @@ object ClassGenerator {
                                                   packageName: String, originalName: String? = null) {
         val featureDslFunsSpecs = properties.map {
             val propClassName = it.first.type as ClassName
-            dslGenerator.generateFeatureDslFunSpec(propClassName.simpleName, propClassName.packageName, deprecationNotice = it.third)
+            val accessorKdoc = it.first.kdoc.takeUnless { kb -> kb.isEmpty() }?.toString()
+            dslGenerator.generateFeatureDslFunSpec(
+                propClassName.simpleName, propClassName.packageName, deprecationNotice = it.third, kdoc = accessorKdoc
+            )
         }
 
         val typeSpecBuilder = TypeSpec.classBuilder(className)
@@ -1032,7 +1042,8 @@ object ClassGenerator {
         packageName: String,
         wotProperties: Properties?,
         wotActions: Actions?,
-        submodelDeprecationNotice: DeprecationNotice? = null
+        submodelDeprecationNotice: DeprecationNotice? = null,
+        featureKdoc: String? = null
     ) {
         val featurePropertiesClassName = featureClassName + "Properties"
         val featureClass = ClassName(packageName, featureClassName)
@@ -1065,6 +1076,7 @@ object ClassGenerator {
             .addSuperclassConstructorParameter("FEATURE_NAME")
             .addType(companionObject)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
+        featureKdoc?.let { typeSpecBuilder.addKdoc("%L", it) }
 
         if (submodelDeprecationNotice?.deprecated == true) {
             typeSpecBuilder.addAnnotation(buildDeprecatedAnnotationSpec(submodelDeprecationNotice))
@@ -1084,10 +1096,18 @@ object ClassGenerator {
             typeSpecBuilder.build(),
             featureClassName,
             packageName,
-            listOf(dslGenerator.generateFeatureDslFunSpec(featureClassName, packageName, true)),
+            listOf(dslGenerator.generateFeatureDslFunSpec(featureClassName, packageName, true, kdoc = featureKdoc)),
             originalName = originalFeatureName
         )
     }
+
+    /**
+     * Derives the enum type name for a primitive action input/output schema that declares an `enum`.
+     * Prefers the schema's title (so a "Mode" input reuses the same `Mode` enum as the property), falling
+     * back to the provided name when no title is present.
+     */
+    private fun actionEnumName(schema: SingleDataSchema, fallback: String): String =
+        schema.title.getOrNull()?.toString()?.takeIf { it.isNotBlank() } ?: fallback
 
     private fun generateActionInterface(
         featureClassName: String,
@@ -1099,8 +1119,18 @@ object ClassGenerator {
             val actionClassAlias = asClassName(action.actionName)
             val interfaceSpec = TypeSpec.interfaceBuilder(actionClassAlias)
                 .addSuperinterface(actionMarkerInterfaceClassName)
+            val inputSchema = action.input.getOrNull()
+            var inputIsEnum = false
             val inputType = action.input.getOrNull()?.let {
                 when {
+                    it.type.isPresent && isPrimitive(it.type.getOrNull()) && it.enum?.isNotEmpty() == true -> {
+                        inputIsEnum = true
+                        resolveActionEnumType(
+                            it, actionEnumName(it, "${actionClassAlias}Input"), it.enum!!,
+                            packageName, actionClassAlias, interfaceSpec
+                        )
+                    }
+
                     it.type.isPresent && isPrimitive(it.type.getOrNull()) -> {
                         asPrimitiveClassName(it)
                     }
@@ -1127,6 +1157,13 @@ object ClassGenerator {
 
             val outputType = action.output.getOrNull()?.let {
                 when {
+                    it.type.isPresent && isPrimitive(it.type.getOrNull()) && it.enum?.isNotEmpty() == true -> {
+                        resolveActionEnumType(
+                            it, actionEnumName(it, "${actionClassAlias}Output"), it.enum!!,
+                            packageName, actionClassAlias, interfaceSpec
+                        )
+                    }
+
                     it.type.isPresent && isPrimitive(it.type.getOrNull()) -> {
                         asPrimitiveClassName(it)
                     }
@@ -1153,8 +1190,16 @@ object ClassGenerator {
                 .addModifiers(KModifier.ABSTRACT)
                 .addModifiers(KModifier.SUSPEND)
 
+            KdocGenerator.forText(
+                action.title.getOrNull()?.toString(),
+                action.description.getOrNull()?.toString()
+            )?.let { functionBuilder.addKdoc("%L", it) }
+
             inputType?.let {
-                functionBuilder.addParameter("input", it)
+                val inputParam = ParameterSpec.builder("input", it)
+                KdocGenerator.forSchema(inputSchema, includeAllowedValues = !inputIsEnum)
+                    ?.let { kd -> inputParam.addKdoc("%L", kd) }
+                functionBuilder.addParameter(inputParam.build())
             }
 
             functionBuilder.addParameter(
@@ -1182,6 +1227,7 @@ object ClassGenerator {
         val typeSpecBuilder = TypeSpec.classBuilder(className).addModifiers(KModifier.DATA)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
             .addAnnotation(buildJsonIncludeAnnotationSpec())
+        KdocGenerator.forSchema(objectSchema)?.let { typeSpecBuilder.addKdoc("%L", it) }
         val constructorSpec = FunSpec.constructorBuilder()
         val requiredFields = objectSchema.required.orEmpty().toSet()
 
@@ -1200,6 +1246,7 @@ object ClassGenerator {
             val propertyBuilder = PropertySpec.builder(name, kotlinType)
                 .addAnnotation(buildJsonPropertyAnnotationSpec(property))
                 .initializer(name)
+            KdocGenerator.forSchema(schema)?.let { propertyBuilder.addKdoc("%L", it) }
             extractDeprecationNotice(schema)?.let { notice ->
                 propertyBuilder.addAnnotation(
                     buildDeprecatedAnnotationSpec(
@@ -1818,6 +1865,7 @@ object ClassGenerator {
         val typeSpecBuilder = TypeSpec.classBuilder(asClassName(propertyName))
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
             .addAnnotation(buildJsonIncludeAnnotationSpec())
+        KdocGenerator.forSchema(objectSchema)?.let { typeSpecBuilder.addKdoc("%L", it) }
 
         superClass?.let {
             typeSpecBuilder.superclass(it)
