@@ -477,6 +477,60 @@ class DeprecationNoticeAndPathsTest {
         assertNull(propertyPath?.get?.deprecated)
     }
 
+    @Test
+    fun `thing action summary and payload description fall back to action name when title is missing`() {
+        val model = thingModelFromJson(
+            """
+            {
+              "@context": "https://www.w3.org/2022/wot/td/v1.1",
+              "@type": "tm:ThingModel",
+              "title": "Device",
+              "actions": {
+                "requestDevicePageInfo": {
+                  "input": { "type": "object" }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val paths = Paths()
+        val api = openApi()
+        ActionsPathsGenerator.generateThingActionsPaths(model, paths, api)
+
+        val actionPost = paths["/{thingId}/inbox/messages/requestDevicePageInfo"]?.post
+        assertNotNull(actionPost)
+        assertEquals("Invokes the 'requestDevicePageInfo' action", actionPost.summary)
+        assertEquals("Request payload of the 'requestDevicePageInfo' action", actionPost.requestBody?.description)
+    }
+
+    @Test
+    fun `feature action summary and payload description fall back to action name when title is missing`() {
+        val featureModel = thingModelFromJson(
+            """
+            {
+              "@context": "https://www.w3.org/2022/wot/td/v1.1",
+              "@type": "tm:ThingModel",
+              "title": "VideoRelay",
+              "actions": {
+                "requestDevicePageInfo": {
+                  "input": { "type": "object" }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val paths = Paths()
+        val api = openApi()
+        FeatureActionsPathsGenerator.generateFeatureActionsPaths("VideoRelay", featureModel, paths, api)
+
+        val actionPost = paths["/{thingId}/features/VideoRelay/inbox/messages/requestDevicePageInfo"]?.post
+        assertNotNull(actionPost)
+        assertEquals("Invokes the 'requestDevicePageInfo' action", actionPost.summary)
+        assertEquals("Request payload of the 'requestDevicePageInfo' action", actionPost.requestBody?.description)
+    }
+
     private fun thingModelFromJson(json: String): ThingModel =
         ThingModel.fromJson(JsonObject.of(json))
 
