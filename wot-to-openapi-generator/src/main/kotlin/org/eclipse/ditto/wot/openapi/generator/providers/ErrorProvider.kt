@@ -12,7 +12,6 @@
  */
 package org.eclipse.ditto.wot.openapi.generator.providers
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
@@ -21,67 +20,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 object ErrorProvider {
 
     fun provideDittoErrorSchemas(): MutableMap<String, Schema<*>> =
-        mutableMapOf(
-            "dittoError_400" to dittoErrorObjectSchema()
-                .example(
-                    ObjectMapper().valueToTree(
-                        DittoError(
-                            400,
-                            "things:id.invalid",
-                            "Thing ID 'nope' is not valid!",
-                            "It must conform to the namespaced entity ID notation (see Ditto documentation)"
-                        )
-                    )
-                ),
-
-            "dittoError_401" to dittoErrorObjectSchema()
-                .example(
-                    ObjectMapper().valueToTree(
-                        DittoError(
-                            401,
-                            "gateway:authentication.failed",
-                            "The JWT was missing.",
-                            "Check if your credentials were correct."
-                        )
-                    )
-                ),
-
-            "dittoError_403" to dittoErrorObjectSchema()
-                .example(
-                    ObjectMapper().valueToTree(
-                        DittoError(
-                            403,
-                            "things:thing.notmodifiable",
-                            "The Thing with ID 'some:thing' could not be modified as the requester had insufficient permissions ('WRITE' is required).",
-                            "Check if the ID of your requested Thing was correct and you have sufficient permissions."
-                        )
-                    )
-                ),
-
-            "dittoError_404" to dittoErrorObjectSchema()
-                .example(
-                    ObjectMapper().valueToTree(
-                        DittoError(
-                            404,
-                            "things:thing.notfound",
-                            "The Thing with ID 'some:thing' could not be found or requester had insufficient permissions to access it.",
-                            "Check if the ID of your requested Thing was correct and you have sufficient permissions."
-                        )
-                    )
-                ),
-
-            "dittoError_408" to dittoErrorObjectSchema()
-                .example(
-                    ObjectMapper().valueToTree(
-                        DittoError(
-                            408,
-                            "command.timeout",
-                            "The Command reached the specified timeout of {10000}ms.",
-                            "Try increasing the command timeout."
-                        )
-                    )
-                )
-        )
+        mutableMapOf("dittoError" to dittoErrorObjectSchema())
 
     private fun dittoErrorObjectSchema() = ObjectSchema()
         .title("Ditto error")
