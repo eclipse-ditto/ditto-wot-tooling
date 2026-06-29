@@ -37,6 +37,7 @@ class ConfigurationBuilder {
     private var generateSuspendDsl: Boolean = false
     private var generateEnums: Boolean = true
     private var generateInterfaces: Boolean = true
+    private var generateKdoc: Boolean = true
     private var submodelOnly: Boolean = false
     private var featureName: String? = null
     private var deduplicateReferencedTypes: Boolean = false
@@ -138,6 +139,14 @@ class ConfigurationBuilder {
     }
 
     /**
+     * Sets whether to render WoT metadata as KDoc on the generated code.
+     */
+    fun generateKdoc(generate: Boolean): ConfigurationBuilder {
+        this.generateKdoc = generate
+        return this
+    }
+
+    /**
      * Sets whether to generate a standalone submodel package instead of a full device model.
      */
     fun submodelOnly(generateStandaloneSubmodel: Boolean): ConfigurationBuilder {
@@ -216,6 +225,7 @@ class ConfigurationBuilder {
             generateSuspendDsl = generateSuspendDsl,
             generateEnums = generateEnums,
             generateInterfaces = generateInterfaces,
+            generateKdoc = generateKdoc,
             submodelOnly = submodelOnly,
             featureName = featureName,
             deduplicateReferencedTypes = deduplicateReferencedTypes

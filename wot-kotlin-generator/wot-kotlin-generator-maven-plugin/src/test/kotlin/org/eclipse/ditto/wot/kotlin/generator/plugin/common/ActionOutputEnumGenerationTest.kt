@@ -380,6 +380,78 @@ class ActionOutputEnumGenerationTest {
         }
     }
 
+    @Test
+    fun `top-level string enum action input uses generated enum not String`() = runBlocking {
+        val outputDir = Files.createTempDirectory("wot-kotlin-action-toplevel-input-enum-test")
+        try {
+            val thingModel = ThingModel.fromJson(
+                JsonObject.of(
+                    """
+                    {
+                      "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                      "@type": "tm:ThingModel",
+                      "title": "HVAC Controller",
+                      "version": { "model": "1.0.0" },
+                      "properties": {},
+                      "actions": {
+                        "changeMode": {
+                          "title": "Change mode",
+                          "description": "Changes the operational mode",
+                          "input": {
+                            "title": "Mode",
+                            "description": "The operational mode to apply",
+                            "type": "string",
+                            "enum": ["AUTO", "MANUAL", "OFF"]
+                          }
+                        }
+                      }
+                    }
+                    """.trimIndent()
+                )
+            )
+            val outputPackage = "org.eclipse.ditto.wot.kotlin.generator.plugin.toplevelinputenumtest"
+            ThingModelGenerator.generate(
+                thingModel,
+                GeneratorConfiguration(
+                    thingModelUrl = "in-memory",
+                    outputPackage = outputPackage,
+                    outputDirectory = outputDir.toFile()
+                )
+            )
+
+            val packagePath = outputPackage.replace('.', '/')
+            val actionFile = outputDir.resolve("$packagePath/actions/ChangeMode.kt")
+
+            assertTrue(Files.exists(actionFile), "Expected generated action file at: $actionFile")
+
+            val content = Files.readString(actionFile)
+
+            // The input parameter should NOT be a raw String — it should be the generated enum
+            assertFalse(
+                Regex("""input:\s*String""").containsMatchIn(content),
+                "input should NOT be of type String, it should be an enum type. Generated content:\n$content"
+            )
+            assertTrue(
+                Regex("""input:\s*Mode""").containsMatchIn(content),
+                "input should be of type Mode (generated enum). Generated content:\n$content"
+            )
+            assertTrue(
+                content.contains("enum class Mode"),
+                "Expected Mode enum class to be generated. Generated content:\n$content"
+            )
+            assertTrue(content.contains("AUTO") && content.contains("MANUAL") && content.contains("OFF"),
+                "Expected enum constants AUTO/MANUAL/OFF. Generated content:\n$content")
+
+            // The redundant "Allowed values" KDoc line should be suppressed now that the type is an enum
+            assertFalse(
+                content.contains("Allowed values"),
+                "Allowed values KDoc should be suppressed for typed enum input. Generated content:\n$content"
+            )
+        } finally {
+            deleteRecursively(outputDir)
+        }
+    }
+
     private fun deleteRecursively(path: Path) {
         if (!Files.exists(path)) return
         Files.walk(path)

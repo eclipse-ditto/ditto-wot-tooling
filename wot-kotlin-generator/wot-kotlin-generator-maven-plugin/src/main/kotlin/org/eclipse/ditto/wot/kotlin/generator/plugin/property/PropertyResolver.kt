@@ -57,7 +57,7 @@ object PropertyResolver {
             val type = resolvePropertyType(it.value, parentPackage, role, feature, dittoCategory, propertyTmRef)
             Pair(
                 it.value,
-                createPropertySpec(it.key, type)
+                createPropertySpec(it.key, type, it.value)
             ) to dittoCategory
         }?.toMap()?.toMutableMap() ?: mutableMapOf()
     }
@@ -82,7 +82,7 @@ object PropertyResolver {
         return fields.map {
             val fieldTmRef = resolveTmRefForProperty(it.key, tmRefMap, it.value.toJson(), currentPropertiesPath)
             val poetType = schemaTypeResolver.resolveSchemaType(it.value, packageName, role, it.key, parentClassName, fieldTmRef)
-            it.key to createPropertySpec(it.key, poetType)
+            it.key to createPropertySpec(it.key, poetType, it.value)
         }
     }
 
@@ -116,7 +116,8 @@ object PropertyResolver {
                 listOf(
                     firstPropName to createPropertySpec(
                         firstPropName,
-                        ClassName(packageName, aliasClassName).copy(nullable = true)
+                        ClassName(packageName, aliasClassName).copy(nullable = true),
+                        oneOfProps[firstPropName]
                     )
                 )
             } else {
@@ -258,7 +259,8 @@ object PropertyResolver {
     // create property spec
     private fun createPropertySpec(
         name: String,
-        type: TypeName
+        type: TypeName,
+        schema: SingleDataSchema? = null
     ): PropertySpec {
         val propertyName = asPropertyName(name)
         val builder = PropertySpec.builder(propertyName, type.copy(nullable = true))
@@ -267,6 +269,7 @@ object PropertyResolver {
         if (propertyName != name) {
             builder.addAnnotation(buildJsonPropertyAnnotationSpec(name))
         }
+        KdocGenerator.forSchema(schema)?.let { builder.addKdoc("%L", it) }
         return builder.build()
     }
 

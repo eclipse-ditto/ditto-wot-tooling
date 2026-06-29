@@ -109,9 +109,11 @@ object ThingModelGenerator {
         logger.debug("Generate DSL: ${config.generateDsl}")
         logger.debug("Generate Enums: ${config.generateEnums}")
         logger.debug("Generate Interfaces: ${config.generateInterfaces}")
+        logger.debug("Generate KDoc: ${config.generateKdoc}")
 
         classGenerator.setOutputDir(config.outputDirectory.path)
         classGenerator.setEnumGenerationStrategy(config)
+        KdocGenerator.configure(config.generateKdoc)
 
         // Clear all registries at the start of each generation run to prevent stale state
         // from a previous model leaking into the current one in multi-execution builds.
@@ -143,7 +145,11 @@ object ThingModelGenerator {
         classGenerator.generateThingActions(config.outputPackage, thingModel)
         classGenerator.generateFeaturesClass(config.outputPackage, links)
 
-        val thingModelClass = TypeSpec.classBuilder(modelName)
+        val thingModelKdoc = KdocGenerator.forText(
+            thingModel.title.getOrNull()?.toString(),
+            thingModel.description.getOrNull()?.toString()
+        )
+        val thingModelClassBuilder = TypeSpec.classBuilder(modelName)
             .addAnnotation(buildDittoJsonDslAnnotationSpec())
             .addAnnotation(buildJsonIncludeAnnotationSpec())
             .addAnnotation(buildJsonIgnoreAnnotationSpec())
@@ -166,10 +172,11 @@ object ThingModelGenerator {
                     "${config.outputPackage}.features"
                 )
             )
-            .build()
+        thingModelKdoc?.let { thingModelClassBuilder.addKdoc("%L", it) }
+        val thingModelClass = thingModelClassBuilder.build()
 
         val file = FileSpec.builder(config.outputPackage, modelName).addType(thingModelClass)
-            .addFunction(generateModelEntryDslFunSpec(modelName, config.outputPackage))
+            .addFunction(generateModelEntryDslFunSpec(modelName, config.outputPackage, thingModelKdoc))
             .build()
         file.writeTo(Path(config.outputDirectory.path))
     }
@@ -195,11 +202,16 @@ object ThingModelGenerator {
      * @param package The package name where the DSL function will be generated
      * @return A [FunSpec] representing the DSL function
      */
-    private fun generateModelEntryDslFunSpec(modelName: String, `package`: String): FunSpec {
+    private fun generateModelEntryDslFunSpec(
+        modelName: String,
+        `package`: String,
+        kdoc: String? = null
+    ): FunSpec {
         val modelClassName = ClassName(asPackageName(`package`), modelName)
         val propertyName = asPropertyName(modelName)
         val funSpecBuilder = FunSpec.builder(propertyName)
             .returns(modelClassName)
+        kdoc?.let { funSpecBuilder.addKdoc("%L", it) }
 
         // Add suspend modifier if configured
         if (classGenerator.getConfig()?.generateSuspendDsl == true) {
