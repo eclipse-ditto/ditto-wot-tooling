@@ -110,8 +110,8 @@
     <properties>
         <revision>0-SNAPSHOT</revision>
 
-        <javac.source>21</javac.source>
-        <javac.target>21</javac.target>
+        <javac.source>25</javac.source>
+        <javac.target>25</javac.target>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -36,18 +36,18 @@
     </modules>
 
     <properties>
-        <kotlin.version>2.2.10</kotlin.version>
+        <kotlin.version>2.4.0</kotlin.version>
         <kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
 
-        <java.version>21</java.version>
-        <maven.compiler.release>21</maven.compiler.release>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
 
-        <ditto-wot-model.version>3.8.12</ditto-wot-model.version>
-        <kotlinx-coroutines.version>1.10.2</kotlinx-coroutines.version>
-        <ktor-client.version>3.2.0</ktor-client.version>
-        <jackson.version>2.20.1</jackson.version>
-        <kotlin-poet.version>2.2.0</kotlin-poet.version>
-        <slf4j.version>2.0.17</slf4j.version>
+        <ditto-wot-model.version>3.9.3</ditto-wot-model.version>
+        <kotlinx-coroutines.version>1.11.0</kotlinx-coroutines.version>
+        <ktor-client.version>3.5.1</ktor-client.version>
+        <jackson.version>2.22.0</jackson.version>
+        <kotlin-poet.version>2.3.0</kotlin-poet.version>
+        <slf4j.version>2.0.18</slf4j.version>
 
         <compiler-plugin.version>3.14.0</compiler-plugin.version>
         <skipITs>true</skipITs>
@@ -178,7 +178,10 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-plugin-plugin</artifactId>
-                    <version>3.15.1</version>
+                    <!-- 3.15.2 bundles ASM 9.9, required so the mojo-descriptor scanner can read the
+                         Java 25 bytecode of ditto-wot-api 3.9.x (class file major version 69).
+                         3.15.1 shipped ASM 9.7.1 which only supports up to Java 24. -->
+                    <version>3.15.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
