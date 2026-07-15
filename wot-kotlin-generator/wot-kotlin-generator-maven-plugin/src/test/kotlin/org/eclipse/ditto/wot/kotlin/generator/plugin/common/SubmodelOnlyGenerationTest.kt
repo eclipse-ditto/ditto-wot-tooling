@@ -20,7 +20,6 @@ import org.eclipse.ditto.wot.kotlin.generator.plugin.config.GeneratorConfigurati
 import org.eclipse.ditto.wot.model.ThingModel
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Comparator
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -106,7 +105,7 @@ class SubmodelOnlyGenerationTest {
                 "Expected standalone Thing wrapper class name"
             )
             assertTrue(
-                featuresWrapperContent.contains("@JsonSetter(\"$configuredFeatureName\")"),
+                featuresWrapperContent.contains("@param:JsonSetter(\"$configuredFeatureName\")"),
                 "Expected Features wrapper to use configured featureName as JSON key"
             )
             assertTrue(

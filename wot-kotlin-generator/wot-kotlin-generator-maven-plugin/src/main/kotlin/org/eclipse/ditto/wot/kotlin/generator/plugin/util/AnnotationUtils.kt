@@ -83,6 +83,14 @@ fun hasJacksonAnnotation(propertySpec: com.squareup.kotlinpoet.PropertySpec): Bo
 
 fun buildJsonSetterAnnotationSpec(originalPropertyName: String): AnnotationSpec {
     return AnnotationSpec.builder(JsonSetter::class)
+        // Pin the annotation to the constructor parameter. Kotlin 2.4.0 changed the default
+        // annotation use-site target to "param-property", which would additionally place
+        // @JsonSetter on the private "_x" backing field. Jackson then sees two fields (the
+        // "_x" backing field and the public "x" property field) mapped to the same JSON name
+        // for "is"-prefixed booleans and fails with "Multiple fields representing property ...".
+        // The "_x" name is always a primary-constructor parameter (see buildPrimaryConstructor),
+        // so PARAM is always a valid target here.
+        .useSiteTarget(AnnotationSpec.UseSiteTarget.PARAM)
         .addMember("%S", originalPropertyName)
         .build()
 }
