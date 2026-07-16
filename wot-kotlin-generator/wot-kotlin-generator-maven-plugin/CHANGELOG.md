@@ -5,6 +5,16 @@ All notable changes to the **WoT Kotlin Generator Maven plugin** are documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-07-16
+
+### Fixed
+
+- Annotation generation for Kotlin 2.4.0: `@JsonSetter` is now pinned to the constructor
+  parameter use-site (`PARAM`). Kotlin 2.4.0 changed the default annotation use-site target to
+  `param-property`, which additionally placed `@JsonSetter` on the private backing field. For
+  `is`-prefixed booleans this caused Jackson to see two fields mapped to the same JSON name and
+  fail with "Multiple fields representing property ...".
+
 ## [1.2.0] - 2026-07-06
 
 ### Added
