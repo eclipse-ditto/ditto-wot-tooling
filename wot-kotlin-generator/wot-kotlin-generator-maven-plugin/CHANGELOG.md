@@ -5,6 +5,27 @@ All notable changes to the **WoT Kotlin Generator Maven plugin** are documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-07-23
+
+### Fixed
+
+- Generated code now preserves the exact casing of WoT object property keys when
+  (de)serializing. Action input/output data classes derived the Kotlin property name
+  directly from the model key, so an UPPERCASE key such as `MONDAY` became a Kotlin
+  property literally named `MONDAY`. Jackson's getter-name mangling turns `getMONDAY()`
+  into the property name `monday`, which overrode the `@JsonProperty("MONDAY")` and
+  produced the wrong (or duplicated) JSON key and broke deserialization. Identifiers are
+  now generated as lower-camel-case via `asPropertyName`, while `@JsonProperty` continues
+  to pin the wire name to the verbatim model key — so the emitted JSON is unchanged for
+  already-valid keys and corrected for keys that previously mis-serialized.
+- `ExplicitNullAwareSerializer` no longer lower-cases property names when a sibling DSL
+  property is explicitly set to `null`. Its hand-rolled object writer now resolves the
+  `@JsonProperty` name for every field it writes, matching Jackson's default serializer.
+
+Note: generated Kotlin properties for non-lower-camel-case keys are renamed (e.g.
+`input.MONDAY` becomes `input.monday`). This is a source-level change caught at compile
+time on regeneration; the on-wire JSON is unaffected.
+
 ## [1.2.1] - 2026-07-16
 
 ### Fixed
