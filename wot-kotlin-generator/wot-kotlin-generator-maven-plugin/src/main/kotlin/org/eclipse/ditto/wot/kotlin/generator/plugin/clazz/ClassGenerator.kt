@@ -1232,7 +1232,7 @@ object ClassGenerator {
         val requiredFields = objectSchema.required.orEmpty().toSet()
 
         objectSchema.properties.forEach { (property, schema) ->
-            val name = asClassProperty(property)
+            val name = asPropertyName(property)
             val isRequired = property in requiredFields
             val kotlinType = resolveActionPropertyType(
                 schema, property, name, className, packageName, isRequired, typeSpecBuilder

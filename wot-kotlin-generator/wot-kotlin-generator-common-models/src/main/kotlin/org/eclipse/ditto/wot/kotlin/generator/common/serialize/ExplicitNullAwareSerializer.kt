@@ -13,6 +13,7 @@
 
 package org.eclipse.ditto.wot.kotlin.generator.common.serialize
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.BeanProperty
 import com.fasterxml.jackson.databind.JsonSerializer
@@ -23,6 +24,8 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
+import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaGetter
 
 /**
  * JsonSerializer aware of explicitly set nulls inside the generated WoT based Kotlin DSL.
@@ -61,8 +64,9 @@ class ExplicitNullAwareSerializer(
             if (containsAnyExplicitlySetNullProperties(explicitlySettoNullPropertiesMap)) {
                 jsonGenerator.writeStartObject()
                 explicitlySettoNullPropertiesMap.forEach { (fieldName, isExplicitlyNull) ->
+                    val jsonName = resolveJsonName(kotlinType, fieldName)
                     if (isExplicitlyNull) {
-                        jsonGenerator.writeFieldName(fieldName)
+                        jsonGenerator.writeFieldName(jsonName)
                         jsonGenerator.writeNull()
                     } else {
                         kotlinType.memberProperties.find { it.name == fieldName }?.let {
@@ -72,7 +76,7 @@ class ExplicitNullAwareSerializer(
                                 if (fieldValueType.isValue) {
                                     doSerialize(fieldValue, fieldValueType, jsonGenerator, serializerProvider)
                                 } else {
-                                    jsonGenerator.writeFieldName(fieldName)
+                                    jsonGenerator.writeFieldName(jsonName)
                                     serializerProvider.defaultSerializeValue(fieldValue, jsonGenerator)
                                 }
                             }
@@ -98,6 +102,26 @@ class ExplicitNullAwareSerializer(
 
     private fun containsAnyExplicitlySetNullProperties(explicitlySettoNullFields: Map<String, Boolean>) =
         explicitlySettoNullFields.any { it.value }
+
+    /**
+     * Resolves the JSON field name for the Kotlin property [propertyName] on [kotlinType].
+     *
+     * Prefers the name declared via `@JsonProperty` (placed on the backing field, with the getter as
+     * a fallback), falling back to the Kotlin identifier when no explicit name is present. This keeps
+     * the hand-rolled object writer consistent with Jackson's default serializer, which always honors
+     * `@JsonProperty`.
+     */
+    private fun resolveJsonName(kotlinType: KClass<*>, propertyName: String): String {
+        val property = kotlinType.memberProperties.find { it.name == propertyName }
+        val annotationValue = (property?.javaField?.getAnnotation(JsonProperty::class.java)
+            ?: property?.javaGetter?.getAnnotation(JsonProperty::class.java))
+            ?.value
+        return if (!annotationValue.isNullOrEmpty() && annotationValue != JsonProperty.USE_DEFAULT_NAME) {
+            annotationValue
+        } else {
+            propertyName
+        }
+    }
 
     override fun resolve(provider: SerializerProvider?) {
         if (defaultSerializer is ResolvableSerializer) {
