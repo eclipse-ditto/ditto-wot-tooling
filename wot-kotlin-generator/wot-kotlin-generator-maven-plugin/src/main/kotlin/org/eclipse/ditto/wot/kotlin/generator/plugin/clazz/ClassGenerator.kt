@@ -374,6 +374,33 @@ object ClassGenerator {
     }
 
     /**
+     * `true` if [type] is exactly the class the `<Prop>Item` alias would be named.
+     *
+     * A map-like property whose value schema carries an inline `enum` has its enum resolved to a bare
+     * `ClassName("", "<Prop>Item")`, i.e. a type the *enclosing* class is expected to nest. Map wrapper classes
+     * resolve their value type before their `TypeSpec` exists, so nothing ever nests it and the name dangles.
+     * Writing a type alias instead produced `typealias XItem = XItem`, which does not compile.
+     */
+    private fun isInlineItemEnumReference(type: TypeName, aliasClassName: String): Boolean =
+        (type.copy(nullable = false) as? ClassName)?.simpleName == aliasClassName
+
+    /**
+     * Writes a registered inline enum out as its own top-level file, so a map value type can refer to it by
+     * package-qualified name. Returns the type to use as the map value, or `null` if no such enum was registered.
+     */
+    private fun writeInlineItemEnumToOwnFile(enumName: String, packageName: String): ClassName? {
+        val enumSpec = EnumRegistry.getInlineEnumByName(enumName)
+            ?: EnumRegistry.getEnumByName(enumName)
+            ?: return null
+        logger.debug("Enum $enumName will be written as its own file in package $packageName")
+        FileSpec.builder(packageName, enumName)
+            .addType(enumSpec)
+            .build()
+            .writeTo(Path(outputDir))
+        return ClassName(packageName, enumName)
+    }
+
+    /**
      * Generates a primitive type alias.
      *
      * Creates a type alias for primitive types when needed for property mapping.
@@ -748,8 +775,12 @@ object ClassGenerator {
                 } else if (valueTypeString != null) {
                     val kotlinType = schemaTypeResolver.resolveSchemaType(org.eclipse.ditto.wot.model.SingleDataSchema.fromJson(valueSchemaJson), packageName, role, singleItemName)
                     val nonNullableType = kotlinType.copy(nullable = false)
-                    generatePrimitiveTypeAlias(nonNullableType, singleItemNameAsClass, packageName)
-                    mapValueType = nonNullableType
+                    mapValueType = if (isInlineItemEnumReference(nonNullableType, singleItemNameAsClass)) {
+                        writeInlineItemEnumToOwnFile(singleItemNameAsClass, packageName) ?: nonNullableType
+                    } else {
+                        generatePrimitiveTypeAlias(nonNullableType, singleItemNameAsClass, packageName)
+                        nonNullableType
+                    }
                 }
             }
             ClassName(EXISTING_FEATURES_PACKAGE, "MapObjectProperty").parameterizedBy(mapValueType)
@@ -1847,8 +1878,12 @@ object ClassGenerator {
                     mapValueType = singleItemNameClass
                 } else if (valueTypeString != null) {
                     val kotlinType = schemaTypeResolver.resolveSchemaType(org.eclipse.ditto.wot.model.SingleDataSchema.fromJson(valueSchemaJson), propertyPackage, role, singleItemName)
-                    generatePrimitiveTypeAlias(kotlinType, singleItemNameAsClass, propertyPackage)
-                    mapValueType = kotlinType
+                    mapValueType = if (isInlineItemEnumReference(kotlinType, singleItemNameAsClass)) {
+                        writeInlineItemEnumToOwnFile(singleItemNameAsClass, propertyPackage) ?: kotlinType
+                    } else {
+                        generatePrimitiveTypeAlias(kotlinType, singleItemNameAsClass, propertyPackage)
+                        kotlinType
+                    }
                 }
             }
             ClassName(EXISTING_FEATURES_PACKAGE, "MapObjectProperty").parameterizedBy(mapValueType)
