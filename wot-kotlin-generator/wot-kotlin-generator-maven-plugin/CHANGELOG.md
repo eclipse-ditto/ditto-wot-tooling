@@ -5,6 +5,19 @@ All notable changes to the **WoT Kotlin Generator Maven plugin** are documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-08-11
+
+### Fixed
+
+- `patternProperties` maps whose value schema is a scalar carrying an `enum` generated code that
+  did not compile. Map wrapper classes resolve their value type before their own `TypeSpec` exists,
+  so the value type resolved to a bare `ClassName("", "<Prop>Item")` that the enclosing class was
+  expected to nest but never did, and the type alias emitted in its place targeted its own file
+  name (`typealias XItem = XItem`). The registered enum is now written out as its own top-level
+  file, and the type alias is kept only for map values that really are primitives. Applies whether
+  the enum sits inline in the value schema or is reached through a `tm:ref`, and is independent of
+  the configured `enumGenerationStrategy`.
+
 ## [1.2.2] - 2026-07-23
 
 ### Fixed
