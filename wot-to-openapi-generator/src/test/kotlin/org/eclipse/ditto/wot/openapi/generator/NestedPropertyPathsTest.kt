@@ -205,6 +205,67 @@ class NestedPropertyPathsTest {
         assertNotNull(networkPath?.patch)
     }
 
+    @Test
+    fun `explicitly readOnly container with a desired writable child suppresses writes on all ancestor paths`() {
+        val model = thingModelFromJson(
+            """
+            {
+              "@context": "https://www.w3.org/2022/wot/td/v1.1",
+              "@type": "tm:ThingModel",
+              "title": "RCP",
+              "properties": {
+                "device-config": {
+                  "type": "object",
+                  "title": "Device Config",
+                  "readOnly": false,
+                  "properties": {
+                    "system-settings": {
+                      "type": "object",
+                      "title": "System Settings",
+                      "readOnly": true,
+                      "properties": {
+                        "CONF_UNIT_NAME": {
+                          "type": "string",
+                          "title": "Unit Name",
+                          "readOnly": false,
+                          "ditto:desired": {
+                            "enabled": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val paths = Paths()
+        FeaturesPathsGenerator.generateFeaturesPaths("RCP", model, paths, openApi())
+
+        // the nested desired-writable property itself is unaffected: GET-only on properties, full CRUD on desiredProperties
+        val nestedPropertyPath = paths["/{thingId}/features/RCP/properties/device-config/system-settings/CONF_UNIT_NAME"]
+        assertNotNull(nestedPropertyPath?.get)
+        assertNull(nestedPropertyPath?.put)
+        assertNull(nestedPropertyPath?.patch)
+        val nestedDesiredPath = paths["/{thingId}/features/RCP/desiredProperties/device-config/system-settings/CONF_UNIT_NAME"]
+        assertNotNull(nestedDesiredPath?.put)
+        assertNotNull(nestedDesiredPath?.patch)
+
+        // the direct, explicitly readOnly container already had no writes (unchanged, pre-existing behaviour)
+        val directParentPath = paths["/{thingId}/features/RCP/properties/device-config/system-settings"]
+        assertNotNull(directParentPath?.get)
+        assertNull(directParentPath?.put)
+        assertNull(directParentPath?.patch)
+
+        // the grandparent defaults to readOnly=false but must still lose PUT/PATCH because of the descendant trigger
+        val grandparentPath = paths["/{thingId}/features/RCP/properties/device-config"]
+        assertNotNull(grandparentPath?.get)
+        assertNull(grandparentPath?.put)
+        assertNull(grandparentPath?.patch)
+    }
+
     private fun thingModelFromJson(json: String): ThingModel =
         ThingModel.fromJson(JsonObject.of(json))
 

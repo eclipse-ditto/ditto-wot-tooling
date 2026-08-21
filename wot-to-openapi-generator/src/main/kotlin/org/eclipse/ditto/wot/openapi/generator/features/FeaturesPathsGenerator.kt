@@ -126,6 +126,23 @@ object FeaturesPathsGenerator {
         }
     }
 
+    /**
+     * Detects whether [schema] (directly or transitively) contains a nested sub-property that is `ditto:desired`
+     * enabled and writable (`readOnly=false`), whose *direct* containing object is explicitly `readOnly=true`.
+     * When true, PUT/PATCH must be suppressed (GET-only) not just on that direct container but on every ancestor
+     * above it too, since bulk-writing the ancestor would implicitly write the desired-only nested field.
+     * The nested property's own `readOnly` value is never overridden by this check.
+     */
+    private fun hasSuppressingDescendant(schema: SingleDataSchema): Boolean {
+        if (schema.type.getOrNull() != DataSchemaType.OBJECT) {
+            return false
+        }
+        val objectSchema = if (schema is Property) schema.asObjectSchema() else schema as? WotObjectSchema ?: return false
+        return objectSchema.properties.values.any { nested ->
+            (schema.isReadOnly && extractDesiredEnabled(nested) && !nested.isReadOnly) || hasSuppressingDescendant(nested)
+        }
+    }
+
     private fun providePathItemFeaturePropertiesCategory(
         featureName: String,
         featureTitle: String,
@@ -290,8 +307,9 @@ object FeaturesPathsGenerator {
                             .addApiResponse(apiResponsesProvider.provide404ApiResponse(path))
                     )
             )
-        // writes move to the desiredProperties path instead when ditto:desired is enabled for this property
-        if (!schema.isReadOnly && !extractDesiredEnabled(schema)) {
+        // writes move to the desiredProperties path instead when ditto:desired is enabled for this property;
+        // writes are also suppressed when a desired-writable nested property requires the parent to stay GET-only
+        if (!schema.isReadOnly && !extractDesiredEnabled(schema) && !hasSuppressingDescendant(schema)) {
             pathItem
                 .put(providePropertyWriteOperation("Replaces", "modified", displayName, schema, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
                 .patch(providePropertyWriteOperation("Merges", "merged", displayName, schema, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
