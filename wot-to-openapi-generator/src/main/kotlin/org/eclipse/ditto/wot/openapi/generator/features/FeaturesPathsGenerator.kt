@@ -22,8 +22,11 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
+import org.eclipse.ditto.wot.model.DataSchemaType
 import org.eclipse.ditto.wot.model.Property
+import org.eclipse.ditto.wot.model.SingleDataSchema
 import org.eclipse.ditto.wot.model.ThingModel
+import org.eclipse.ditto.wot.model.ObjectSchema as WotObjectSchema
 import org.eclipse.ditto.wot.openapi.generator.Utils
 import org.eclipse.ditto.wot.openapi.generator.Utils.DeprecationNotice
 import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
@@ -56,14 +59,15 @@ object FeaturesPathsGenerator {
             ?.sortedBy { extractPropertyCategory(it.value) + it.key }
             ?.map {
                 val dittoCategory = extractPropertyCategory(it.value)
+                val relativePath = "${dittoCategory?.let { "$it/" } ?: ""}${it.key}"
                 if (dittoCategory != null && !paths.containsKey("/{thingId}/features/$featureName/properties/$dittoCategory")) {
                     paths.addPathItem(
                         "/{thingId}/features/$featureName/properties/$dittoCategory",
                         providePathItemFeaturePropertiesCategory(featureName, featureTitle, dittoCategory, submodelDeprecationNotice)
                     )
                 }
-                paths.addPathItem("/{thingId}/features/$featureName/properties/${dittoCategory?.let { "$it/" } ?: ""}${it.key}",
-                    providePathItemFeatureProperty(featureName, featureTitle, it.value, openAPI, submodelDeprecationNotice))
+                paths.addPathItem("/{thingId}/features/$featureName/properties/$relativePath",
+                    providePathItemFeatureProperty(featureName, featureTitle, it.key, it.key, relativePath, it.value, openAPI, submodelDeprecationNotice))
 
                 // a readOnly property can never be desired, regardless of a ditto:desired declaration
                 if (extractDesiredEnabled(it.value) && !it.value.isReadOnly) {
@@ -73,10 +77,53 @@ object FeaturesPathsGenerator {
                             providePathItemFeatureDesiredPropertiesCategory(featureName, featureTitle, dittoCategory, submodelDeprecationNotice)
                         )
                     }
-                    paths.addPathItem("/{thingId}/features/$featureName/desiredProperties/${dittoCategory?.let { "$it/" } ?: ""}${it.key}",
-                        providePathItemFeatureDesiredProperty(featureName, featureTitle, it.value, openAPI, submodelDeprecationNotice))
+                    paths.addPathItem("/{thingId}/features/$featureName/desiredProperties/$relativePath",
+                        providePathItemFeatureDesiredProperty(featureName, featureTitle, it.key, it.key, relativePath, it.value, openAPI, submodelDeprecationNotice))
                 }
+
+                // recurse into nested sub-properties of object-typed properties (arbitrary depth);
+                // nested ditto:category is not supported
+                provideNestedPropertyPaths(featureName, featureTitle, relativePath, it.value, openAPI, paths, submodelDeprecationNotice)
             }
+    }
+
+    /**
+     * Recursively exposes nested sub-properties of an object-typed property (or sub-property) as their own
+     * `properties/...` GET path and, when `ditto:desired` is enabled for the nested schema, a `desiredProperties/...`
+     * GET/PUT/PATCH path. Recurses to arbitrary depth for further nested objects. The parent's own whole-object
+     * path is left completely unaffected. Nested `ditto:category` is not supported.
+     */
+    private fun provideNestedPropertyPaths(
+        featureName: String,
+        featureTitle: String,
+        parentRelativePath: String,
+        schema: SingleDataSchema,
+        openAPI: OpenAPI,
+        paths: Paths,
+        submodelDeprecationNotice: DeprecationNotice?
+    ) {
+        if (schema.type.getOrNull() != DataSchemaType.OBJECT) {
+            return
+        }
+        val objectSchema = if (schema is Property) schema.asObjectSchema() else schema as? WotObjectSchema ?: return
+        objectSchema.properties.forEach { (key, nestedSchema) ->
+            val relativePath = "$parentRelativePath/$key"
+            val schemaRefNameSuffix = relativePath.replace("/", "_")
+            paths.addPathItem(
+                "/{thingId}/features/$featureName/properties/$relativePath",
+                providePathItemFeatureProperty(featureName, featureTitle, key, schemaRefNameSuffix, relativePath, nestedSchema, openAPI, submodelDeprecationNotice)
+            )
+
+            // a readOnly nested property can never be desired, regardless of a ditto:desired declaration
+            if (extractDesiredEnabled(nestedSchema) && !nestedSchema.isReadOnly) {
+                paths.addPathItem(
+                    "/{thingId}/features/$featureName/desiredProperties/$relativePath",
+                    providePathItemFeatureDesiredProperty(featureName, featureTitle, key, schemaRefNameSuffix, relativePath, nestedSchema, openAPI, submodelDeprecationNotice)
+                )
+            }
+
+            provideNestedPropertyPaths(featureName, featureTitle, relativePath, nestedSchema, openAPI, paths, submodelDeprecationNotice)
+        }
     }
 
     private fun providePathItemFeaturePropertiesCategory(
@@ -198,24 +245,26 @@ object FeaturesPathsGenerator {
     private fun providePathItemFeatureProperty(
         featureName: String,
         featureTitle: String,
-        property: Property,
+        displayName: String,
+        schemaRefNameSuffix: String,
+        relativePath: String,
+        schema: SingleDataSchema,
         openAPI: OpenAPI,
         submodelDeprecationNotice: DeprecationNotice? = null
     ): PathItem {
 
-        val dittoCategory = extractPropertyCategory(property)
-        val propertyDeprecationNotice = extractDeprecationNotice(property)
-        val deprecationNotice = propertyDeprecationNotice ?: submodelDeprecationNotice
+        val schemaDeprecationNotice = extractDeprecationNotice(schema.toJson())
+        val deprecationNotice = schemaDeprecationNotice ?: submodelDeprecationNotice
         val deprecated = deprecationNotice?.deprecated == true
-        val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
-        val responseSchema = provideSchema(property, featureName, openAPI)
+        val description = mergeWithDeprecationNotice(schema.description.getOrNull()?.toString(), deprecationNotice)
+        val responseSchema = provideSchema(schema, schemaRefNameSuffix, featureName, openAPI)
         if (deprecated) markSchemaDeprecated(responseSchema, openAPI)
-        val path = provideFeaturePropertyPath(featureName, dittoCategory, property)
+        val path = "features/$featureName/properties/$relativePath"
         val pathItem = PathItem()
             .get(
                 Operation()
                     .also { if (deprecated) it.deprecated(true) }
-                    .summary("Retrieves the '${property.title.getOrNull()?.toString()}' property")
+                    .summary("Retrieves the '${schema.title.getOrNull()?.toString()}' property")
                     .description(description)
                     .tags(listOf("Feature: $featureTitle"))
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
@@ -228,7 +277,7 @@ object FeaturesPathsGenerator {
                         ApiResponses()
                             .addApiResponse(
                                 "200", ApiResponse()
-                                    .description("The feature property '${property.propertyName}' is returned")
+                                    .description("The feature property '$displayName' is returned")
                                     .content(
                                         Content().addMediaType(
                                             APPLICATION_JSON,
@@ -242,10 +291,10 @@ object FeaturesPathsGenerator {
                     )
             )
         // writes move to the desiredProperties path instead when ditto:desired is enabled for this property
-        if (!property.isReadOnly && !extractDesiredEnabled(property)) {
+        if (!schema.isReadOnly && !extractDesiredEnabled(schema)) {
             pathItem
-                .put(providePropertyWriteOperation("Replaces", "modified", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
-                .patch(providePropertyWriteOperation("Merges", "merged", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
+                .put(providePropertyWriteOperation("Replaces", "modified", displayName, schema, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
+                .patch(providePropertyWriteOperation("Merges", "merged", displayName, schema, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
         }
         return pathItem
     }
@@ -253,24 +302,26 @@ object FeaturesPathsGenerator {
     private fun providePathItemFeatureDesiredProperty(
         featureName: String,
         featureTitle: String,
-        property: Property,
+        displayName: String,
+        schemaRefNameSuffix: String,
+        relativePath: String,
+        schema: SingleDataSchema,
         openAPI: OpenAPI,
         submodelDeprecationNotice: DeprecationNotice? = null
     ): PathItem {
 
-        val dittoCategory = extractPropertyCategory(property)
-        val propertyDeprecationNotice = extractDeprecationNotice(property)
-        val deprecationNotice = propertyDeprecationNotice ?: submodelDeprecationNotice
+        val schemaDeprecationNotice = extractDeprecationNotice(schema.toJson())
+        val deprecationNotice = schemaDeprecationNotice ?: submodelDeprecationNotice
         val deprecated = deprecationNotice?.deprecated == true
-        val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
-        val responseSchema = provideSchema(property, featureName, openAPI)
+        val description = mergeWithDeprecationNotice(schema.description.getOrNull()?.toString(), deprecationNotice)
+        val responseSchema = provideSchema(schema, schemaRefNameSuffix, featureName, openAPI)
         if (deprecated) markSchemaDeprecated(responseSchema, openAPI)
-        val path = provideFeaturePropertyPath(featureName, dittoCategory, property, "desiredProperties")
+        val path = "features/$featureName/desiredProperties/$relativePath"
         return PathItem()
             .get(
                 Operation()
                     .also { if (deprecated) it.deprecated(true) }
-                    .summary("Retrieves the desired '${property.title.getOrNull()?.toString()}' property")
+                    .summary("Retrieves the desired '${schema.title.getOrNull()?.toString()}' property")
                     .description(description)
                     .tags(listOf("Feature: $featureTitle"))
                     .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
@@ -283,7 +334,7 @@ object FeaturesPathsGenerator {
                         ApiResponses()
                             .addApiResponse(
                                 "200", ApiResponse()
-                                    .description("The desired feature property '${property.propertyName}' is returned")
+                                    .description("The desired feature property '$displayName' is returned")
                                     .content(
                                         Content().addMediaType(
                                             APPLICATION_JSON,
@@ -296,8 +347,8 @@ object FeaturesPathsGenerator {
                             .addApiResponse(apiResponsesProvider.provide404ApiResponse(path))
                     )
             )
-            .put(providePropertyWriteOperation("Replaces", "modified", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = true))
-            .patch(providePropertyWriteOperation("Merges", "merged", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = true))
+            .put(providePropertyWriteOperation("Replaces", "modified", displayName, schema, featureName, featureTitle, openAPI, deprecated, description, path, desired = true))
+            .patch(providePropertyWriteOperation("Merges", "merged", displayName, schema, featureName, featureTitle, openAPI, deprecated, description, path, desired = true))
     }
 
     /**
@@ -307,7 +358,8 @@ object FeaturesPathsGenerator {
     private fun providePropertyWriteOperation(
         verb: String,
         successfullyWord: String,
-        property: Property,
+        displayName: String,
+        schema: SingleDataSchema,
         featureName: String,
         featureTitle: String,
         openAPI: OpenAPI,
@@ -316,7 +368,7 @@ object FeaturesPathsGenerator {
         path: String,
         desired: Boolean
     ): Operation {
-        val titleLabel = property.title.getOrNull()?.toString()
+        val titleLabel = schema.title.getOrNull()?.toString()
         val summary = if (desired) "$verb the desired '$titleLabel' property" else "$verb the '$titleLabel' property"
         val propertyLabel = if (desired) "desired feature property" else "feature property"
         return Operation()
@@ -328,17 +380,17 @@ object FeaturesPathsGenerator {
                 ApiResponses()
                     .addApiResponse(
                         "201", ApiResponse()
-                            .description("The $propertyLabel '${property.propertyName}' was successfully created")
+                            .description("The $propertyLabel '$displayName' was successfully created")
                             .content(
                                 Content().addMediaType(
                                     APPLICATION_JSON,
-                                    MediaType().schema(asOpenApiSchema(property, featureName, "property", openAPI))
+                                    MediaType().schema(asOpenApiSchema(schema, featureName, "property", openAPI))
                                 )
                             )
                     )
                     .addApiResponse(
                         "204", ApiResponse()
-                            .description("The $propertyLabel '${property.propertyName}' was successfully $successfullyWord")
+                            .description("The $propertyLabel '$displayName' was successfully $successfullyWord")
                     )
                     .addApiResponse(apiResponsesProvider.provide400ApiResponse(path))
                     .addApiResponse(apiResponsesProvider.provide401ApiResponse(path))
@@ -347,18 +399,11 @@ object FeaturesPathsGenerator {
             )
     }
 
-    private fun provideFeaturePropertyPath(
-        featureName: String,
-        dittoCategory: String?,
-        property: Property,
-        segment: String = "properties"
-    ) = "features/$featureName/$segment/${dittoCategory?.let { "$it/" } ?: ""}${property.propertyName}"
-
-    private fun provideSchema(property: Property, featureName: String, openAPI: OpenAPI) =
-        if (isPrimitive(property.type.getOrNull())) {
-            asOpenApiSchema(property, null, "property", openAPI)
+    private fun provideSchema(schema: SingleDataSchema, schemaRefNameSuffix: String, featureName: String, openAPI: OpenAPI) =
+        if (isPrimitive(schema.type.getOrNull())) {
+            asOpenApiSchema(schema, null, "property", openAPI)
         } else {
-            Schema<Any>().apply { `$ref`("#/components/schemas/feature_${asPropertyName(featureName)}_property_${asPropertyName(property.propertyName)}") }
+            Schema<Any>().apply { `$ref`("#/components/schemas/feature_${asPropertyName(featureName)}_property_${asPropertyName(schemaRefNameSuffix)}") }
         }
 
 }
