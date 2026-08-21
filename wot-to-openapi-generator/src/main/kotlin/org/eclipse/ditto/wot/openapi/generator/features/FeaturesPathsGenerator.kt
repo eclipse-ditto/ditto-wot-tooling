@@ -30,6 +30,7 @@ import org.eclipse.ditto.wot.openapi.generator.Utils.asOpenApiSchema
 import org.eclipse.ditto.wot.openapi.generator.Utils.asPropertyName
 import org.eclipse.ditto.wot.openapi.generator.Utils.buildDeprecationDescription
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractDeprecationNotice
+import org.eclipse.ditto.wot.openapi.generator.Utils.extractDesiredEnabled
 import org.eclipse.ditto.wot.openapi.generator.Utils.extractPropertyCategory
 import org.eclipse.ditto.wot.openapi.generator.Utils.isPrimitive
 import org.eclipse.ditto.wot.openapi.generator.Utils.markSchemaDeprecated
@@ -63,6 +64,18 @@ object FeaturesPathsGenerator {
                 }
                 paths.addPathItem("/{thingId}/features/$featureName/properties/${dittoCategory?.let { "$it/" } ?: ""}${it.key}",
                     providePathItemFeatureProperty(featureName, featureTitle, it.value, openAPI, submodelDeprecationNotice))
+
+                // a readOnly property can never be desired, regardless of a ditto:desired declaration
+                if (extractDesiredEnabled(it.value) && !it.value.isReadOnly) {
+                    if (dittoCategory != null && !paths.containsKey("/{thingId}/features/$featureName/desiredProperties/$dittoCategory")) {
+                        paths.addPathItem(
+                            "/{thingId}/features/$featureName/desiredProperties/$dittoCategory",
+                            providePathItemFeatureDesiredPropertiesCategory(featureName, featureTitle, dittoCategory, submodelDeprecationNotice)
+                        )
+                    }
+                    paths.addPathItem("/{thingId}/features/$featureName/desiredProperties/${dittoCategory?.let { "$it/" } ?: ""}${it.key}",
+                        providePathItemFeatureDesiredProperty(featureName, featureTitle, it.value, openAPI, submodelDeprecationNotice))
+                }
             }
     }
 
@@ -102,6 +115,46 @@ object FeaturesPathsGenerator {
                                 )
                         )
                         .addApiResponse(apiResponsesProvider.provide401ApiResponse("features/$featureName/properties/$category"))
+                )
+        )
+    }
+
+    private fun providePathItemFeatureDesiredPropertiesCategory(
+        featureName: String,
+        featureTitle: String,
+        category: String,
+        submodelDeprecationNotice: DeprecationNotice? = null
+    ): PathItem {
+        val deprecated = submodelDeprecationNotice?.deprecated == true
+        val deprecationDescription = buildDeprecationDescription(submodelDeprecationNotice)
+        return PathItem()
+        .get(
+            Operation()
+                .also { if (deprecated) it.deprecated(true) }
+                .summary("Retrieves all '$category' categorized desired properties of feature $featureTitle")
+                .description(deprecationDescription)
+                .tags(listOf("Feature: $featureTitle"))
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CONDITION) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CHANNEL) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION) })
+                .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY) })
+                .responses(
+                    ApiResponses()
+                        .addApiResponse(
+                            "200", ApiResponse()
+                                .description("Returns the desired feature category '$category'")
+                                .content(
+                                    Content().addMediaType(
+                                        APPLICATION_JSON, MediaType()
+                                            .schema(Schema<Any>().apply {
+                                                `$ref`("#/components/schemas/${asPropertyName(featureName)}_${category}_properties")
+                                            })
+                                    )
+                                )
+                        )
+                        .addApiResponse(apiResponsesProvider.provide401ApiResponse("features/$featureName/desiredProperties/$category"))
                 )
         )
     }
@@ -157,6 +210,7 @@ object FeaturesPathsGenerator {
         val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
         val responseSchema = provideSchema(property, featureName, openAPI)
         if (deprecated) markSchemaDeprecated(responseSchema, openAPI)
+        val path = provideFeaturePropertyPath(featureName, dittoCategory, property)
         val pathItem = PathItem()
             .get(
                 Operation()
@@ -182,166 +236,123 @@ object FeaturesPathsGenerator {
                                         )
                                     )
                             )
+                            .addApiResponse(apiResponsesProvider.provide400ApiResponse(path))
+                            .addApiResponse(apiResponsesProvider.provide401ApiResponse(path))
+                            .addApiResponse(apiResponsesProvider.provide404ApiResponse(path))
+                    )
+            )
+        // writes move to the desiredProperties path instead when ditto:desired is enabled for this property
+        if (!property.isReadOnly && !extractDesiredEnabled(property)) {
+            pathItem
+                .put(providePropertyWriteOperation("Replaces", "modified", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
+                .patch(providePropertyWriteOperation("Merges", "merged", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = false))
+        }
+        return pathItem
+    }
+
+    private fun providePathItemFeatureDesiredProperty(
+        featureName: String,
+        featureTitle: String,
+        property: Property,
+        openAPI: OpenAPI,
+        submodelDeprecationNotice: DeprecationNotice? = null
+    ): PathItem {
+
+        val dittoCategory = extractPropertyCategory(property)
+        val propertyDeprecationNotice = extractDeprecationNotice(property)
+        val deprecationNotice = propertyDeprecationNotice ?: submodelDeprecationNotice
+        val deprecated = deprecationNotice?.deprecated == true
+        val description = mergeWithDeprecationNotice(property.description.getOrNull()?.toString(), deprecationNotice)
+        val responseSchema = provideSchema(property, featureName, openAPI)
+        if (deprecated) markSchemaDeprecated(responseSchema, openAPI)
+        val path = provideFeaturePropertyPath(featureName, dittoCategory, property, "desiredProperties")
+        return PathItem()
+            .get(
+                Operation()
+                    .also { if (deprecated) it.deprecated(true) }
+                    .summary("Retrieves the desired '${property.title.getOrNull()?.toString()}' property")
+                    .description(description)
+                    .tags(listOf("Feature: $featureTitle"))
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.PATH_PARAM_THING_ID) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_FIELDS) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CONDITION) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_CHANNEL) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_CONDITION) })
+                    .addParametersItem(Parameter().apply { `$ref`(ParametersProvider.QUERY_PARAM_LIVE_CHANNEL_TIMEOUT_STRATEGY) })
+                    .responses(
+                        ApiResponses()
                             .addApiResponse(
-                                apiResponsesProvider.provide400ApiResponse(
-                                    provideFeaturePropertyPath(
-                                        featureName,
-                                        dittoCategory,
-                                        property
+                                "200", ApiResponse()
+                                    .description("The desired feature property '${property.propertyName}' is returned")
+                                    .content(
+                                        Content().addMediaType(
+                                            APPLICATION_JSON,
+                                            MediaType().schema(responseSchema)
+                                        )
                                     )
-                                )
                             )
-                            .addApiResponse(
-                                apiResponsesProvider.provide401ApiResponse(
-                                    provideFeaturePropertyPath(
-                                        featureName,
-                                        dittoCategory,
-                                        property
-                                    )
-                                )
-                            )
-                            .addApiResponse(
-                                apiResponsesProvider.provide404ApiResponse(
-                                    provideFeaturePropertyPath(
-                                        featureName,
-                                        dittoCategory,
-                                        property
-                                    )
+                            .addApiResponse(apiResponsesProvider.provide400ApiResponse(path))
+                            .addApiResponse(apiResponsesProvider.provide401ApiResponse(path))
+                            .addApiResponse(apiResponsesProvider.provide404ApiResponse(path))
+                    )
+            )
+            .put(providePropertyWriteOperation("Replaces", "modified", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = true))
+            .patch(providePropertyWriteOperation("Merges", "merged", property, featureName, featureTitle, openAPI, deprecated, description, path, desired = true))
+    }
+
+    /**
+     * Builds the PUT ("Replaces") or PATCH ("Merges") operation for a feature property, shared between the
+     * regular `properties` path and the `desiredProperties` path (when `ditto:desired` is enabled).
+     */
+    private fun providePropertyWriteOperation(
+        verb: String,
+        successfullyWord: String,
+        property: Property,
+        featureName: String,
+        featureTitle: String,
+        openAPI: OpenAPI,
+        deprecated: Boolean,
+        description: String?,
+        path: String,
+        desired: Boolean
+    ): Operation {
+        val titleLabel = property.title.getOrNull()?.toString()
+        val summary = if (desired) "$verb the desired '$titleLabel' property" else "$verb the '$titleLabel' property"
+        val propertyLabel = if (desired) "desired feature property" else "feature property"
+        return Operation()
+            .also { if (deprecated) it.deprecated(true) }
+            .summary(summary)
+            .description(description)
+            .tags(listOf("Feature: $featureTitle"))
+            .responses(
+                ApiResponses()
+                    .addApiResponse(
+                        "201", ApiResponse()
+                            .description("The $propertyLabel '${property.propertyName}' was successfully created")
+                            .content(
+                                Content().addMediaType(
+                                    APPLICATION_JSON,
+                                    MediaType().schema(asOpenApiSchema(property, featureName, "property", openAPI))
                                 )
                             )
                     )
+                    .addApiResponse(
+                        "204", ApiResponse()
+                            .description("The $propertyLabel '${property.propertyName}' was successfully $successfullyWord")
+                    )
+                    .addApiResponse(apiResponsesProvider.provide400ApiResponse(path))
+                    .addApiResponse(apiResponsesProvider.provide401ApiResponse(path))
+                    .addApiResponse(apiResponsesProvider.provide403ApiResponse(path))
+                    .addApiResponse(apiResponsesProvider.provide404ApiResponse(path))
             )
-        if (!property.isReadOnly) {
-            pathItem
-                .put(
-                    Operation()
-                        .also { if (deprecated) it.deprecated(true) }
-                        .summary("Replaces the '${property.title.getOrNull()?.toString()}' property")
-                        .description(description)
-                        .tags(listOf("Feature: $featureTitle"))
-                        .responses(
-                            ApiResponses()
-                                .addApiResponse(
-                                    "201", ApiResponse()
-                                        .description("The feature property '${property.propertyName}' was successfully created")
-                                        .content(
-                                            Content().addMediaType(
-                                                APPLICATION_JSON,
-                                                MediaType().schema(asOpenApiSchema(property, featureName, "property", openAPI))
-                                            )
-                                        )
-                                )
-                                .addApiResponse(
-                                    "204", ApiResponse()
-                                        .description("The feature property '${property.propertyName}' was successfully modified")
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide400ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide401ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide403ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide404ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                        )
-                )
-                .patch(
-                    Operation()
-                        .also { if (deprecated) it.deprecated(true) }
-                        .summary("Merges the '${property.title.getOrNull()?.toString()}' property")
-                        .description(description)
-                        .tags(listOf("Feature: $featureTitle"))
-                        .responses(
-                            ApiResponses()
-                                .addApiResponse(
-                                    "201", ApiResponse()
-                                        .description("The feature property '${property.propertyName}' was successfully created")
-                                        .content(
-                                            Content().addMediaType(
-                                                APPLICATION_JSON,
-                                                MediaType().schema(asOpenApiSchema(property, featureName, "property", openAPI))
-                                            )
-                                        )
-                                )
-                                .addApiResponse(
-                                    "204", ApiResponse()
-                                        .description("The feature property '${property.propertyName}' was successfully merged")
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide400ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide401ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide403ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                                .addApiResponse(
-                                    apiResponsesProvider.provide404ApiResponse(
-                                        provideFeaturePropertyPath(
-                                            featureName,
-                                            dittoCategory,
-                                            property
-                                        )
-                                    )
-                                )
-                        )
-                )
-        }
-        return pathItem
     }
 
     private fun provideFeaturePropertyPath(
         featureName: String,
         dittoCategory: String?,
-        property: Property
-    ) = "features/$featureName/properties/${dittoCategory?.let { "$it/" } ?: ""}${property.propertyName}"
+        property: Property,
+        segment: String = "properties"
+    ) = "features/$featureName/$segment/${dittoCategory?.let { "$it/" } ?: ""}${property.propertyName}"
 
     private fun provideSchema(property: Property, featureName: String, openAPI: OpenAPI) =
         if (isPrimitive(property.type.getOrNull())) {

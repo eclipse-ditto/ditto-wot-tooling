@@ -432,6 +432,24 @@ object Utils {
     }
 
     /**
+     * Determines whether a WoT property is expected to us ditto "desired" property according to the Ditto `ditto:desired` extension.
+     * Presence of `ditto:desired` implies desired unless its nested `enabled` field is explicitly `false`.
+     *
+     * @param property The WoT property to inspect
+     * @return true if the property should be exposed via Ditto's `desiredProperties` instead of `properties`
+     */
+    fun extractDesiredEnabled(property: Property): Boolean {
+        val desired = property.toJson().getValue(JsonPointer.of("ditto:desired"))
+            .getOrNull()
+            ?.takeIf(JsonValue::isObject)
+            ?.asObject()
+            ?: return false
+
+        val enabled = desired.getValue(JsonPointer.of("enabled")).getOrNull()
+        return enabled?.let { it.isBoolean && it.asBoolean() } ?: true
+    }
+
+    /**
      * Extracts the Ditto deprecation notice from a WoT property.
      */
     fun extractDeprecationNotice(property: Property): DeprecationNotice? {
