@@ -432,6 +432,25 @@ object Utils {
     }
 
     /**
+     * Determines whether a WoT property (or a nested sub-property of an object-typed property) is expected to
+     * use Ditto's "desired" property according to the `ditto:desired` extension.
+     * Presence of `ditto:desired` implies desired unless its nested `enabled` field is explicitly `false`.
+     *
+     * @param schema The WoT property or nested sub-property schema to inspect
+     * @return true if the schema should be exposed via Ditto's `desiredProperties` instead of `properties`
+     */
+    fun extractDesiredEnabled(schema: SingleDataSchema): Boolean {
+        val desired = schema.toJson().getValue(JsonPointer.of("ditto:desired"))
+            .getOrNull()
+            ?.takeIf(JsonValue::isObject)
+            ?.asObject()
+            ?: return false
+
+        val enabled = desired.getValue(JsonPointer.of("enabled")).getOrNull()
+        return enabled?.let { it.isBoolean && it.asBoolean() } ?: true
+    }
+
+    /**
      * Extracts the Ditto deprecation notice from a WoT property.
      */
     fun extractDeprecationNotice(property: Property): DeprecationNotice? {
